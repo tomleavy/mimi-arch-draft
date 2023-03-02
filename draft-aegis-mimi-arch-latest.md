@@ -1,3 +1,4 @@
+---
 title: More Instant Messaging Interoperability (MIMI) Back-end Architecture
 abbrev: MIMI Architecture
 docname: draft-aegis-mimi-arch-latest
@@ -151,3 +152,5 @@ This document has no IANA actions.
 {:numbered="false"}
 
 TODO acknowledge.
+
+---
