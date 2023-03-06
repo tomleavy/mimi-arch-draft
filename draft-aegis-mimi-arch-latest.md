@@ -43,16 +43,23 @@ TODO Abstract
 
 # Introduction
 
-In order to achieve cross-application federation between a set of MLS applications there must be a common set of APIs available that implement the basic AS/DS requirements as defined by `MLS Architecture`. To facilitate the creation of groups asynchronously, MLS clients may have a need to establish identity, credentials and a queue of key packages. Once groups are established, it is useful for clients to have access to a common repository for welcome messages, pending proposals, commit messages, and ratchet trees. 
+In order to achieve cross-application federation between a set of MLS
+applications there must be a common set of APIs available that implement the
+basic AS/DS requirements as defined by `MLS Architecture`. To facilitate the
+creation of groups asynchronously, MLS clients may have a need to establish 
+identity, credentials and a queue of key packages. Once groups are established,
+it is useful for clients to have access to a common repository for welcome
+messages, pending proposals, commit messages, and ratchet trees. 
 
-In this document we describe a MIMI Gateway API that can be used to provide intra domain and cross domain federation between MLS applications.
+In this document we describe a MIMI Gateway API that can be used to provide 
+intra domain and cross domain federation between MLS applications.
 
 # Operational Context 
 
 A basic federation scenario consists of a bi-directional data flow between actors. Clients
 communicate with application servers, application servers
 communicate with gateway services, and gateway services
-communicate with other gateway services.
+communicate with other gateway services. 
 
 ~~~
 + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
@@ -89,23 +96,27 @@ external interface that allows for cross-domain federation. A gateway acts as a
 permissioned database of the following information:
 
 * Unique identities that can be grouped by tags.
-* Queryable queues of MLS Key Packages indexed by identity, protocol version, cipher suite, custom labels.
+* Queryable queues of MLS Key Packages indexed by identity, protocol version,
+cipher suite, custom labels.
 * MLS Group proposals, commits, welcome messages and ratchet trees indexed by epoch.
 
 ## Identity Providers
 
 An identity provider helps ensure a consistent AS behavior between federating
-MLS applications. Internally an identity provider MUST implement the following
+LS applications. Internally an identity provider MUST implement the following
 set of functionality. 
 
 * Declare support for a specific set of MLS credential types.
-* Validate a credential given a public key that is stored along side that
-  credential in an MLS Leaf and a timestamp that can be used to determine
-  validity of credentials that may expire (Ex. X509 Certificate credentials).
-* Uniquely identify a Leaf based on its identity to ensure that the same
+* Validate an identity based on its public key, credential, the current set of
+  group context extensions, and opaque application context. If validation is
+  done in the context of a commit, group context extensions MUST include any
+  changes due to a GroupContextExtensions proposal.
+* Uniquely identify a client based on its identity to ensure that the same
   identity is not added to a MLS group multiple times.
-* Uniquely identity the entity that controls a specific leaf.
-* Determine if an identity is controlled by the same entity as another identity.
+* Determine if one identity is a valid successor of another in order to verify
+  if an Update proposal, or a remove proposal within an external commit should
+  be allowed. Unless otherwise specified, a client is a valid successor of
+  another client if their client identifiers are equal.
 
 An example interface of an identity provider is as follows:
 
@@ -115,14 +126,23 @@ struct {
     Credential credential;
 } Identity;
 
-fn supported_credentials() -> [CredentialType];
-fn validate(Identity identity, u64 time) -> bool;
-fn leaf_identifier(Identity identity) -> Vec<u8>;
-fn entity_identifier(Identity identity) -> Vec<u8>;
+struct {
+    opaque context<V>
+} ApplicationContext;
 
-fn valid_successor(Identity predecessor, Identity successor) -> bool {
-    return self.entity_identifier(predecessor) == self.entity_identifier(successor);
-}
+interface {
+    fn supported_credentials() -> [CredentialType];
+
+    fn validate(Identity identity, Extension group_context_ext[],
+        ApplicationContext a_ctx) -> bool;
+
+    fn client_identifier(Identity identity) -> Vec<u8>;
+
+    fn valid_successor(Identity predecessor, Identity successor) -> bool {
+        return self.client_identifier(predecessor) == 
+            self.client_identifier(successor);
+    }
+} IdentityProvider;
 ~~~
 
 Each identity provider has a unique value that identifies its behavior along
@@ -158,23 +178,58 @@ trust root negotiation).
 
 ~~~
 struct {
-   int leaf_offset;
-   int entity_offset;
+   uint64 msg_timestamp;
+} X509ApplicationContext;
+
+struct {
+    X509IdentityRange range;
 } X509Parameters;
 ~~~
 
 ### X.509 Identifiers
 
-Leaf identifiers in an X.509 Identity provider are based upon a certificate's subject.
-The certificate that is `leaf_offset` certificates away from the leaf should be
-used for leaf identification purposes, with a `leaf_offset` of 0 representing the
-leaf certificate itself. If a CN value is found within the certificate's subject,
-then it's DER representation should be used as a leaf identifier. If a CN value
-is not found, then the DER representation of the entire subject should be used in its
-place.
+Calculating a client's identifier is done by iterating through a subset of X.509
+subject fields found within the client's certificate chain. The range of
+certificates in the chain to reference as part of the calculation is defined as
+starting with `start` values from the leaf and ending with
+`end` values from the leaf. A single unique identifier is calculated by
+hashing the Common Name value found in each certificate within the reference
+range using the current group's ciphersuite hash function.
 
-Similarly, `entity_offset` is used to determine an entity identifier following
-the same process.
+~~~
+struct {
+   uint8 start;
+   uint8 end<0..255>;
+} X509IdentityRange;
+~~~
+
+fn client_identifier(HashFunction hasher, CertificateChain cert_chain,
+X509IdentityRange range)
+{
+    for certificate in cert_chain[range.start..=range.end] {
+        let common_name = certificate.subject.common_name;
+
+        if (!common_name) {
+            throw "Common name is required";
+        }
+
+        hasher.update(common_name);
+    }
+
+    return hasher.finalize();
+}
+~~~
+
+### Handing Timestamps 
+
+// TODO: Utilize X509ApplicationContext in order to set a msg_timestamp that
+will be used to determine if the certificate chain was valid at a specific time
+of use. 
+
+// TODO: Describe how to check for expired certificates at commit time and
+propose their removal. Other clients / Server MUST verify this has been done
+based on the timestamp of the message assigned by the server and reject
+accordingly.
 
 ## Applications
 
@@ -222,22 +277,48 @@ above allows to add an arbitrary moderator, or all clients owned by
 entities with the right clearance.
 
 ## Identity Registration
-When a client registers with an application, the application registers
-the client with the identity service using the following query:
 
-// TODO: This should be described as an HTTP route.
+When a client registers with an application, the application registers
+the client with the identity service using the following request:
 
 ~~~
-u16 IdentityQueryType = 1;
+HTTP POST /apps/{appId}/clients 
 
-struct {
-    opaque entity_identifier<V>;
-    opaque tag<V>;
-} RegisterIdentityQuery;
+Input:
+
+{
+    clientIdentity: Base64(IdentityProvider.client_identity),
+    tags: [String]
+}
+
+Output:
+
+{
+    clientId: UUIDv4
+}
+
 ~~~
 
 In the above figure, the returned `client_id` is the new unique
-identifier assigned to the client by the identity service.
+identifier assigned to the client by the identity service. Services MUST ensure
+that `clientIdentity` is unique amongst all registered clients. 
+
+A client MAY be editable by the following request:
+
+~~~
+HTTP PATCH /apps/{appId}/clients/{clientId}
+
+Input:
+
+{
+   clientIdentity: Blob,
+   tagsToAdd: Tags,
+   tagsToRemove: Tags
+}
+~~~
+
+Patching an existing client MUST fail if changing `clientIdentity` results in a
+conflict with another existing client.
 
 ## Discovering Clients
 
