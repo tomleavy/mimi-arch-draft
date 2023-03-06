@@ -56,10 +56,10 @@ intra domain and cross domain federation between MLS applications.
 
 # Operational Context 
 
-A basic federation scenario consists of a bi-directional data flow between actors. Clients
-communicate with application servers, application servers
-communicate with gateway services, and gateway services
-communicate with other gateway services. 
+A basic federation scenario consists of a bi-directional data flow between
+three types of actors: clients, application servers and MIMI gateways. Clients
+communicate with application servers, application servers communicate with
+gateway services, and gateway services communicate with other gateway services.
 
 ~~~
 + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
@@ -89,16 +89,17 @@ communicate with other gateway services.
 
 # Gateway Overview
 
-The MIMI Gateway is designed to be a hybrid of AS and DS functionality has
+The MIMI Gateway is designed to be a hybrid of AS and DS functionality as
 defined by `MLS Architecture`. It has an internal interface for
 applications within its domain to federate with each other, as well as an
 external interface that allows for cross-domain federation. A gateway acts as a
 permissioned database of the following information:
 
-* Unique identities that can be grouped by tags.
-* Queryable queues of MLS Key Packages indexed by identity, protocol version,
-cipher suite, custom labels.
-* MLS Group proposals, commits, welcome messages and ratchet trees indexed by epoch.
+* Unique identifiers of clients that can be queried by application-defined tags.
+* Queryable queues of MLS Key Packages indexed by identifier, protocol version,
+cipher suite and a custom label.
+* MLS proposals, commits, welcome messages and ratchet trees indexed by MLS
+`group_id` and `epoch_id`.
 
 ## Identity Providers
 
