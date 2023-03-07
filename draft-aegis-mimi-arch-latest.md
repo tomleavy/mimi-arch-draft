@@ -3,6 +3,7 @@ title: More Instant Messaging Interoperability (MIMI) Back-end Architecture
 abbrev: MIMI Architecture
 docname: draft-aegis-mimi-arch-latest
 category: std
+submissionType: IETF
 
 ipr: trust200902
 area: Security
@@ -23,8 +24,6 @@ author:
  -  fullname: Marta Mularczyk
     organization: Amazon - Wickr
     email: mulmarta@amazon.com
-
-contributor:
 
 informative:
 
@@ -189,36 +188,98 @@ struct {
 
 ### X.509 Identifiers
 
-Calculating a client's identifier is done by iterating through a subset of X.509
-subject fields found within the client's certificate chain. The range of
-certificates in the chain to reference as part of the calculation is defined as
-starting with `start` values from the leaf and ending with
-`end` values from the leaf. A single unique identifier is calculated by
-hashing the Common Name value found in each certificate within the reference
-range using the current group's ciphersuite hash function.
+Identifiers (e.g. for clients) are derived by iterating through a subset of X.509 subject Common Name fields found within the client's certificate chain. Common Name fields MUST not contain any of the 5 special characters "@", "/", "#", "$" and ":". The range of certificates in the chain to used in the derivation is defined as starting with `start` values from the leaf and ending with `end` values from the leaf.
 
 ~~~
-struct {
-   uint8 start;
-   uint8 end<0..255>;
-} X509IdentityRange;
-
-fn client_identifier(HashFunction hasher, CertificateChain cert_chain,
-X509IdentityRange range)
+fn identifier(CertificateChain cert_chain, uint8 start, uint8 end)
 {
-    for certificate in cert_chain[range.start..=range.end] {
+    string id = new String;
+    bool first = true;
+    
+    for certificate in cert_chain[start...end] {
         let common_name = certificate.subject.common_name;
 
         if (!common_name) {
             throw "Common name is required";
         }
+        
+        if (common_name.contains("@","/","#","$",":") {
+            throw "Common names may not contain @/#$: characters.";
+        }
 
-        hasher.update(common_name);
+        if (!first) {
+            id.append(":");
+        } else {
+            first = false;
+        }
+        id.append(common_name);
     }
 
-    return hasher.finalize();
+    return id;
 }
 ~~~
+
+For example client identifiers are given by fixing a range and calling 'identifier':
+
+~~~
+struct {
+    uint8 start;
+    uint8 end<0...255>;
+} X509ClientIdentityRange
+
+fn client_identifier(CertificateChain cert_chain, X509ClientIdentityRange range) {
+    return identifier(cert_chain, range.start, range.end)
+}
+~~~
+
+### X.509 Account Identifiers
+
+Many messaging systems use of multi-client (e.g. multi-device) accounts. Account identifiers are calculated just like client identifiers but for the Account Identity range.
+
+~~~
+struct {
+    uint8 start;
+    uint8 end<0...255>;
+} X509AccountIdentityRange
+
+fn acount_identifier(CertificateChain cert_chain, X509AccountIdentityRange range) {
+    return identifier(cert_chain, range.start, range.end)
+}
+~~~
+
+The Account Identity range strictly succeeds the Client Identity range in the certificate chain counting from the leaf certificate up.
+
+~~~
+X509AccountIdentityRange.start > X509ClientIdentityRange.end
+~~~~
+
+### X.509 Domain Identifiers
+
+Federated messaging systems often associate accounts with a domain (e.g. that of a home server hosting the account). Domain identifiers are calculated just like client identifiers but for the Domain Identity range.
+
+~~~
+struct {
+    uint8 start;
+    uint8 end<0...255>;
+} X509DomainIdentityRange
+
+fn domain_identifier(CertificateChain cert_chain, X509DomainIdentityRange range) {
+    return identifier(cert_chain, range.start, range.end)
+}
+~~~
+
+The Domain Identity range strictly succeeds the Client Identity range in the certificate chain counting from the leaf certificate up.
+
+~~~
+X509DomainIdentityRange.start > X509ClientIdentityRange.end
+~~~~
+
+When Account identifiers are used then the Domain Identity range must also strictly succeed the Account Identity range.
+
+~~~
+X509DomainIdentityRange.start > X509AccountIdentityRange.end
+~~~~
+
 
 ### Handing Timestamps 
 
