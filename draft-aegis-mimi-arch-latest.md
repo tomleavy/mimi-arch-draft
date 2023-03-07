@@ -300,7 +300,7 @@ Output:
 
 ~~~
 
-In the above figure, the returned `client_id` is the new unique
+In the above figure, the returned `clientId` is the new unique
 identifier assigned to the client by the identity service. Services MUST ensure
 that `clientIdentity` is unique amongst all registered clients. 
 
