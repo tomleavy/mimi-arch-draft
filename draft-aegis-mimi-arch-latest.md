@@ -104,7 +104,7 @@ cipher suite and a custom label.
 ## Identity Providers
 
 An identity provider helps ensure a consistent AS behavior between federating
-LS applications. Internally an identity provider MUST implement the following
+MLS applications. Internally an identity provider MUST implement the following
 set of functionality. 
 
 * Declare support for a specific set of MLS credential types.
