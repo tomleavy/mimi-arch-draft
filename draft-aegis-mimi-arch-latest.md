@@ -188,11 +188,15 @@ struct {
 
 ### X.509 Identifiers
 
-Identifiers (e.g. for clients) are derived by iterating through a subset of X.509 subject Common Name fields found within the client's certificate chain. Common Name fields MUST not contain any of the 5 special characters "@", "/", "#", "$" and ":". The range of certificates in the chain to used in the derivation is defined as starting with `start` values from the leaf and ending with `end` values from the leaf.
+Identifiers (e.g. for clients) are derived by iterating through a subset of
+X.509 subject Common Name fields found within the client's certificate chain.
+Common Name fields MUST not contain any of the 5 special characters "@", "/",
+"#", "$" and ":". The range of certificates in the chain to used in the
+derivation is defined as starting with `start` values from the leaf and ending
+with `end` values from the leaf.
 
 ~~~
-fn identifier(CertificateChain cert_chain, uint8 start, uint8 end)
-{
+fn identifier(CertificateChain cert_chain, uint8 start, uint8 end) {
     string id = new String;
     bool first = true;
     
@@ -219,65 +223,68 @@ fn identifier(CertificateChain cert_chain, uint8 start, uint8 end)
 }
 ~~~
 
-For example client identifiers are given by fixing a range and calling 'identifier':
+For example client identifiers are given by fixing a range and calling
+'identifier':
 
 ~~~
 struct {
     uint8 start;
     uint8 end<0...255>;
-} X509ClientIdentityRange
+} X509ClientIDRange
 
-fn client_identifier(CertificateChain cert_chain, X509ClientIdentityRange range) {
+fn client_identifier(CertificateChain cert_chain, X509ClientIDRange range) {
     return identifier(cert_chain, range.start, range.end)
 }
 ~~~
 
 ### X.509 Account Identifiers
 
-Many messaging systems use of multi-client (e.g. multi-device) accounts. Account identifiers are calculated just like client identifiers but for the Account Identity range.
+Many messaging systems use of multi-client (e.g. multi-device) accounts. Account
+identifiers are calculated like client identifiers but based on the certificate
+at the Accoun Identity offset (instead of Client Identity range).
 
 ~~~
-struct {
-    uint8 start;
-    uint8 end<0...255>;
-} X509AccountIdentityRange
+uint8 X509AccountIDOffset;
 
-fn acount_identifier(CertificateChain cert_chain, X509AccountIdentityRange range) {
-    return identifier(cert_chain, range.start, range.end)
+fn acount_identifier(CertificateChain cert_chain, X509AccountIDOffset offset) {
+    return identifier(cert_chain, offset, offset)
 }
 ~~~
 
-The Account Identity range strictly succeeds the Client Identity range in the certificate chain counting from the leaf certificate up.
+The Account Identity offset strictly succeeds the Client Identity range in the
+certificate chain counting from the leaf certificate up.
 
 ~~~
-X509AccountIdentityRange.start > X509ClientIdentityRange.end
+X509AccountIDOffset > X509ClientIDRange.end
 ~~~~
 
 ### X.509 Domain Identifiers
 
-Federated messaging systems often associate accounts with a domain (e.g. that of a home server hosting the account). Domain identifiers are calculated just like client identifiers but for the Domain Identity range.
+Federated messaging systems often associate accounts with a domain (e.g. that of
+a home server hosting the account). Domain identifiers are calculated just like
+Account Identifiers but using the Domain Identity offset in place of the Account
+Identity offset.
 
 ~~~
-struct {
-    uint8 start;
-    uint8 end<0...255>;
-} X509DomainIdentityRange
+uint8 X509DomainIDOffset;
 
-fn domain_identifier(CertificateChain cert_chain, X509DomainIdentityRange range) {
-    return identifier(cert_chain, range.start, range.end)
+fn domain_identifier(CertificateChain cert_chain, X509DomainIDOffset offset) {
+    return identifier(cert_chain, offset, offset)
 }
 ~~~
 
-The Domain Identity range strictly succeeds the Client Identity range in the certificate chain counting from the leaf certificate up.
+The Domain Identity range strictly succeeds the Client Identity range in the
+certificate chain counting from the leaf certificate up.
 
 ~~~
-X509DomainIdentityRange.start > X509ClientIdentityRange.end
+X509DomainIDOffset > X509ClientIDRange.end
 ~~~~
 
-When Account identifiers are used then the Domain Identity range must also strictly succeed the Account Identity range.
+When Account identifiers are used then the Domain Identity range must also
+strictly succeed the Account Identity range.
 
 ~~~
-X509DomainIdentityRange.start > X509AccountIdentityRange.end
+X509DomainIDOffset > X509AccountIDRange.end
 ~~~~
 
 
@@ -348,7 +355,7 @@ HTTP POST /apps/{appId}/clients
 Input:
 
 {
-    clientIdentity: Base64(IdentityProvider.client_identity),
+    ClientID: Base64(IdentityProvider.client_identity),
     tags: [String]
 }
 
@@ -362,7 +369,7 @@ Output:
 
 In the above figure, the returned `clientId` is the new unique
 identifier assigned to the client by the identity service. Services MUST ensure
-that `clientIdentity` is unique amongst all registered clients. 
+that `ClientID` is unique amongst all registered clients. 
 
 A client MAY be editable by the following request:
 
@@ -372,13 +379,13 @@ HTTP PATCH /apps/{appId}/clients/{clientId}
 Input:
 
 {
-   clientIdentity: Blob,
+   ClientID: Blob,
    tagsToAdd: Tags,
    tagsToRemove: Tags
 }
 ~~~
 
-Patching an existing client MUST fail if changing `clientIdentity` results in a
+Patching an existing client MUST fail if changing `ClientID` results in a
 conflict with another existing client.
 
 ## Discovering Clients
