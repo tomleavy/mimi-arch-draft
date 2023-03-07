@@ -202,7 +202,6 @@ struct {
    uint8 start;
    uint8 end<0..255>;
 } X509IdentityRange;
-~~~
 
 fn client_identifier(HashFunction hasher, CertificateChain cert_chain,
 X509IdentityRange range)
