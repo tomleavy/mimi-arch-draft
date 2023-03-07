@@ -1,0 +1,21 @@
+graph {
+    rankdir = LR;
+    
+    subgraph cluster_0 {
+        "Alice" -- "Application Server 1";
+        "Bob" -- "Application Server 2";
+        "Application Server 1" -- "MIMI Gateway A";
+        "Application Server 2" -- "MIMI Gateway A";
+        label = "Domain A";
+    }
+
+    subgraph cluster_1 {
+        "Application Server 3" -- "Carol";
+        "Application Server 4" -- "Dave";
+        "MIMI Gateway B" -- "Application Server 3";
+        "MIMI Gateway B" -- "Application Server 4";
+        label = "Domain B";
+    }
+
+ 	"MIMI Gateway A" -- "MIMI Gateway B";
+}
