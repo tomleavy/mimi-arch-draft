@@ -3,6 +3,7 @@ title: More Instant Messaging Interoperability (MIMI) Back-end Architecture
 abbrev: MIMI Architecture
 docname: draft-aegis-mimi-arch-latest
 category: std
+submissionType: IETF
 
 ipr: trust200902
 area: Security
@@ -23,8 +24,6 @@ author:
  -  fullname: Marta Mularczyk
     organization: Amazon - Wickr
     email: mulmarta@amazon.com
-
-contributor:
 
 informative:
 
@@ -137,7 +136,7 @@ interface {
     fn validate(Identity identity, Extension group_context_ext[],
         ApplicationContext a_ctx) -> bool;
 
-    fn client_identifier(Identity identity) -> Vec<u8>;
+    fn client_handle(Identity identity) -> Vec<u8>;
 
     fn valid_successor(Identity predecessor, Identity successor) -> bool {
         return self.client_identifier(predecessor) == 
@@ -189,36 +188,109 @@ struct {
 
 ### X.509 Identifiers
 
-Calculating a client's identifier is done by iterating through a subset of X.509
-subject fields found within the client's certificate chain. The range of
-certificates in the chain to reference as part of the calculation is defined as
-starting with `start` values from the leaf and ending with
-`end` values from the leaf. A single unique identifier is calculated by
-hashing the Common Name value found in each certificate within the reference
-range using the current group's ciphersuite hash function.
+Identifiers (e.g. handles for clients) are derived by iterating through a subset
+of X.509 subject Common Name fields found within the client's certificate chain.
+Common Name fields MUST not contain any of the 5 special characters "@", "/",
+"#", "$" and ":". The range of certificates in the chain to used in the
+derivation is defined as starting with `start` values from the leaf and ending
+with `end` values from the leaf.
 
 ~~~
-struct {
-   uint8 start;
-   uint8 end<0..255>;
-} X509IdentityRange;
-
-fn client_identifier(HashFunction hasher, CertificateChain cert_chain,
-X509IdentityRange range)
-{
-    for certificate in cert_chain[range.start..=range.end] {
+fn identifier(CertificateChain cert_chain, uint8 start, uint8 end) {
+    string id = new String;
+    bool first = true;
+    
+    for certificate in cert_chain[start...end] {
         let common_name = certificate.subject.common_name;
 
         if (!common_name) {
             throw "Common name is required";
         }
+        
+        if (common_name.contains("@","/","#","$",":") {
+            throw "Common names may not contain @/#$: characters.";
+        }
 
-        hasher.update(common_name);
+        if (!first) {
+            id.append(":");
+        } else {
+            first = false;
+        }
+        id.append(common_name);
     }
 
-    return hasher.finalize();
+    return id;
 }
 ~~~
+
+### X.509 Client Handles
+A client handle is a human readable name for a client.
+{{?I-D.draft-mahy-mimi-identity}} The X.509 identity provider extracts the
+client handle from a client's credentials by fixing a range and calling
+'identifier' for the certificates in the range.
+
+~~~
+struct {
+    uint8 start;
+    uint8 end<0...255>;
+} X509ClientHandleRange
+
+fn client_handle(CertificateChain cert_chain, X509ClientHandleRange range) {
+    return identifier(cert_chain, range.start, range.end)
+}
+~~~
+
+### X.509 Account Identifiers
+
+Many messaging systems use multi-client (e.g. multi-device) accounts.
+Accounts are also refered to as users {{?I-D.draft-mahy-mimi-identity}}. Account
+handles are calculated like client handles but based on the certificate
+at the Account Handle offset (instead of Client Handle range).
+
+~~~
+uint8 X509AcntHandleOffset;
+
+fn acount_identifier(CertificateChain cert_chain, X509AcntHandleOffset offset) {
+    return identifier(cert_chain, offset, offset)
+}
+~~~
+
+The Account Handle offset strictly succeeds the Client Handle range in the
+certificate chain counting from the leaf certificate up.
+
+~~~
+X509AcntHandleOffset > X509ClientHandleRange.end
+~~~~
+
+### X.509 Domains Names
+
+Federated messaging systems often associate accounts with a domain (e.g. that of
+a home server hosting the account). Domain Names are calculated just like
+Account Handles but using the Domain Name offset in place of the Account
+Handle offset.
+
+~~~
+uint8 X509DomainNameOffset;
+
+fn domain_identifier(CertificateChain cert_chain, X509DomainNameOffset offset) {
+    return identifier(cert_chain, offset, offset)
+}
+~~~
+
+The Domain Name offset strictly succeeds the Client Handle range in the
+certificate chain counting from the leaf certificate up.
+
+~~~
+X509DomainIDOffset > X509ClientHandleRange.end
+~~~~
+
+When Account identifiers are used then the Domain Name offset must also
+strictly succeed the Account Handle offset.
+
+~~~
+X509DomainIDOffset > X509AccountIDRange.end
+~~~~
+
 
 ### Handing Timestamps 
 
@@ -260,20 +332,20 @@ interoperability.
 Each gateway implements client discovery. It assigns to each
 registered client a unique identifier (a UUID), which remains constant
 for as long as the client uses the system. In contrast, a client's
-_identity_ may change (for instance, if they change phone number).
+_handle_ may change (for instance, if they change a phone's hostname).
 Further, each client is (optionally) assigned a set of tags. Each tag
-represents a grouping of clients, for example:
-1. A tag `account_id:alice@org` represents all clients belonging to an
-   account `alice@org`.
-2. Tags `moderator` or `clearance:top_secret` represent all clients with
-   given access rights.
+represents attributes associated with the client, for example:
+1. A tag `account_id:alice@org` indicates the client belongs to the (domain
+   scoped) account `alice@org`.
+2. Tags `moderator` or `clearance:top_secret` indicates the clients have certain
+   roles or access rights.
 
 Tags of a given client are provided by the application. The service
 allows the application to search for clients by tags. For example,
 searching by tag 1. above allows to list all clients owned by
 `alice@org`, which is a typical scenario in messaging applications where
-Bob invites a multi-device account of Alice. Searching by a tag 2.
-above allows to add an arbitrary moderator, or all clients owned by
+Bob invites a multi-device account of Alice to join a chat. Searching by a tag 
+2. above allows to add an arbitrary moderator, or all clients owned by
 entities with the right clearance.
 
 ## Identity Registration
@@ -287,7 +359,7 @@ HTTP POST /apps/{appId}/clients
 Input:
 
 {
-    clientIdentity: Base64(IdentityProvider.client_identity),
+    clientHandle: Base64(IdentityProvider.client_handle),
     tags: [String]
 }
 
@@ -299,9 +371,9 @@ Output:
 
 ~~~
 
-In the above figure, the returned `clientId` is the new unique
-identifier assigned to the client by the identity service. Services MUST ensure
-that `clientIdentity` is unique amongst all registered clients. 
+In the above figure, the returned `clientId` is the new identifier assigned to
+the client by the identity service. Services MUST ensure that `clientId` is
+unique amongst all registered clients. 
 
 A client MAY be editable by the following request:
 
@@ -311,30 +383,51 @@ HTTP PATCH /apps/{appId}/clients/{clientId}
 Input:
 
 {
-   clientIdentity: Blob,
-   tagsToAdd: Tags,
-   tagsToRemove: Tags
+   clientHandle: Base64(IdentityProvider.client_handle),
+   tagsToAdd: [String],
+   tagsToRemove: [String]
 }
 ~~~
 
-Patching an existing client MUST fail if changing `clientIdentity` results in a
+Patching an existing client MUST fail if changing `clientHandle` results in a
 conflict with another existing client.
 
-## Discovering Clients
+## Client Discovery
 
-## Retrieving Identities
+An application can list identifiers of all clients with a given
+tag using the following request:
 
-## Updating and Unregistering Clients
+~~~
+HTTP GET /apps/{appId}/clients 
 
-Define the interface.
+Input:
 
-# Key Pool Service
+{
+    tag: String
+}
 
-Define the interface.
+Output:
 
-# Group State Service
+{
+    identities: [
+        {
+            clientId: UUIDv4,
+            clientHandle: Base64(IdentityProvider.client_handle),
+            tags: [String]
+        },
+    ...
+    ]
+}
 
-Define the interface.
+~~~
+
+## Identity Retrieval
+
+TODO
+
+## Identity Deletion
+
+TODO
 
 # Example Usage
 

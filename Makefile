@@ -8,5 +8,12 @@ xml: draft-aegis-mimi-arch-latest.md
 	kramdown-rfc2629 draft-aegis-mimi-arch-latest.md > draft-aegis-mimi-arch-latest.xml
 
 clean:
-	rm draft-aegis-mimi-arch-latest.xml
-	rm tracker.log
+	$(call delete,draft-aegis-mimi-arch-latest.xml)
+	$(call delete,draft-aegis-mimi-arch-latest.txt)
+	$(call delete,draft-aegis-mimi-arch-latest.html)
+	$(call delete,tracker.log)
+
+
+define delete
+	if [ -f $(1) ]; then rm $(1); fi
+endef
