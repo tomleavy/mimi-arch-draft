@@ -136,7 +136,7 @@ interface {
     fn validate(Identity identity, Extension group_context_ext[],
         ApplicationContext a_ctx) -> bool;
 
-    fn client_identifier(Identity identity) -> Vec<u8>;
+    fn client_handle(Identity identity) -> Vec<u8>;
 
     fn valid_successor(Identity predecessor, Identity successor) -> bool {
         return self.client_identifier(predecessor) == 
@@ -188,8 +188,8 @@ struct {
 
 ### X.509 Identifiers
 
-Identifiers (e.g. for clients) are derived by iterating through a subset of
-X.509 subject Common Name fields found within the client's certificate chain.
+Identifiers (e.g. handles for clients) are derived by iterating through a subset
+of X.509 subject Common Name fields found within the client's certificate chain.
 Common Name fields MUST not contain any of the 5 special characters "@", "/",
 "#", "$" and ":". The range of certificates in the chain to used in the
 derivation is defined as starting with `start` values from the leaf and ending
@@ -223,65 +223,69 @@ fn identifier(CertificateChain cert_chain, uint8 start, uint8 end) {
 }
 ~~~
 
-For example client identifiers are given by fixing a range and calling
-'identifier':
+### X.509 Client Handles
+A client handle is a human readable name for a client.
+{{?I-D.draft-mahy-mimi-identity}} The X.509 identity provider extracts the
+client handle from a client's credentials by fixing a range and calling
+'identifier' for the certificates in the range.
 
 ~~~
 struct {
     uint8 start;
     uint8 end<0...255>;
-} X509ClientIDRange
+} X509ClientHandleRange
 
-fn client_identifier(CertificateChain cert_chain, X509ClientIDRange range) {
+fn client_handle(CertificateChain cert_chain, X509ClientHandleRange range) {
     return identifier(cert_chain, range.start, range.end)
 }
 ~~~
 
 ### X.509 Account Identifiers
 
-Many messaging systems use of multi-client (e.g. multi-device) accounts. Account
-identifiers are calculated like client identifiers but based on the certificate
-at the Accoun Identity offset (instead of Client Identity range).
+Many messaging systems use of multi-client (e.g. multi-device) accounts.
+Accounts are also refered to as users {{?I-D.draft-mahy-mimi-identity}}. Account
+handles are calculated like client handles but based on the certificate
+at the Account Handle offset (instead of Client Handle range).
 
 ~~~
-uint8 X509AccountIDOffset;
+uint8 X509AcntHandleOffset;
 
-fn acount_identifier(CertificateChain cert_chain, X509AccountIDOffset offset) {
+fn acount_identifier(CertificateChain cert_chain, X509AcntHandleOffset offset) {
     return identifier(cert_chain, offset, offset)
 }
 ~~~
 
-The Account Identity offset strictly succeeds the Client Identity range in the
+The Account Handle offset strictly succeeds the Client Handle range in the
 certificate chain counting from the leaf certificate up.
 
 ~~~
-X509AccountIDOffset > X509ClientIDRange.end
+X509AcntHandleOffset > X509ClientHandleRange.end
 ~~~~
 
-### X.509 Domain Identifiers
+### X.509 Domains Names
 
 Federated messaging systems often associate accounts with a domain (e.g. that of
-a home server hosting the account). Domain identifiers are calculated just like
-Account Identifiers but using the Domain Identity offset in place of the Account
-Identity offset.
+a home server hosting the account). Domain Names are calculated just like
+Account Handles but using the Domain Name offset in place of the Account
+Handle offset.
 
 ~~~
-uint8 X509DomainIDOffset;
+uint8 X509DomainNameOffset;
 
-fn domain_identifier(CertificateChain cert_chain, X509DomainIDOffset offset) {
+fn domain_identifier(CertificateChain cert_chain, X509DomainNameOffset offset) {
     return identifier(cert_chain, offset, offset)
 }
 ~~~
 
-The Domain Identity range strictly succeeds the Client Identity range in the
+The Domain Name offset strictly succeeds the Client Handle range in the
 certificate chain counting from the leaf certificate up.
 
 ~~~
-X509DomainIDOffset > X509ClientIDRange.end
+X509DomainIDOffset > X509ClientHandleRange.end
 ~~~~
 
-When Account identifiers are used then the Domain Identity range must also
-strictly succeed the Account Identity range.
+When Account identifiers are used then the Domain Name offset must also
+strictly succeed the Account Handle offset.
 
 ~~~
 X509DomainIDOffset > X509AccountIDRange.end
@@ -328,20 +332,20 @@ interoperability.
 Each gateway implements client discovery. It assigns to each
 registered client a unique identifier (a UUID), which remains constant
 for as long as the client uses the system. In contrast, a client's
-_identity_ may change (for instance, if they change phone number).
+_handle_ may change (for instance, if they change a phone's hostname).
 Further, each client is (optionally) assigned a set of tags. Each tag
-represents a grouping of clients, for example:
-1. A tag `account_id:alice@org` represents all clients belonging to an
-   account `alice@org`.
-2. Tags `moderator` or `clearance:top_secret` represent all clients with
-   given access rights.
+represents attributes associated with the client, for example:
+1. A tag `account_id:alice@org` indicates the client belongs to the (domain
+   scoped) account `alice@org`.
+2. Tags `moderator` or `clearance:top_secret` indicates the clients have certain
+   roles or access rights.
 
 Tags of a given client are provided by the application. The service
 allows the application to search for clients by tags. For example,
 searching by tag 1. above allows to list all clients owned by
 `alice@org`, which is a typical scenario in messaging applications where
-Bob invites a multi-device account of Alice. Searching by a tag 2.
-above allows to add an arbitrary moderator, or all clients owned by
+Bob invites a multi-device account of Alice to join a chat. Searching by a tag 
+2. above allows to add an arbitrary moderator, or all clients owned by
 entities with the right clearance.
 
 ## Identity Registration
@@ -355,7 +359,7 @@ HTTP POST /apps/{appId}/clients
 Input:
 
 {
-    ClientID: Base64(IdentityProvider.client_identity),
+    ClientHandle: Base64(IdentityProvider.client_handle),
     tags: [String]
 }
 
@@ -379,13 +383,13 @@ HTTP PATCH /apps/{appId}/clients/{clientId}
 Input:
 
 {
-   ClientID: Blob,
+   ClientHandle: Blob,
    tagsToAdd: Tags,
    tagsToRemove: Tags
 }
 ~~~
 
-Patching an existing client MUST fail if changing `ClientID` results in a
+Patching an existing client MUST fail if changing `ClientHandle` results in a
 conflict with another existing client.
 
 ## Discovering Clients
