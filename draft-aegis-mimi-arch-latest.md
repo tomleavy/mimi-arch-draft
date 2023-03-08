@@ -383,30 +383,197 @@ HTTP PATCH /apps/{appId}/clients/{clientId}
 Input:
 
 {
-   ClientHandle: Blob,
-   tagsToAdd: Tags,
-   tagsToRemove: Tags
+   ClientHandle: Base64(IdentityProvider.client_identity),
+   tagsToAdd: [String],
+   tagsToRemove: [String]
 }
 ~~~
 
 Patching an existing client MUST fail if changing `ClientHandle` results in a
 conflict with another existing client.
 
-## Discovering Clients
+## Client Discovery
 
-## Retrieving Identities
+An application can list identifiers of all clients with a given
+tag using the following request:
 
-## Updating and Unregistering Clients
+~~~
+HTTP GET /apps/{appId}/clients 
 
-Define the interface.
+Input:
 
-# Key Pool Service
+{
+    tag: String
+}
 
-Define the interface.
+Output:
 
-# Group State Service
+{
+    identities: [
+        {
+            clientId: UUIDv4,
+            clientIdentity: Base64(IdentityProvider.client_identity),
+            tags: [String]
+        },
+    ...
+    ]
+}
 
-Define the interface.
+~~~
+
+## Identity Retrieval
+
+TODO
+
+## Identity Deletion
+
+TODO
+
+# Managing Key Packages
+
+Each gateway implements a directory providing MLS key packages, which contain
+initial keying material of clients and can be used to add them to the group
+even when they are offline.
+
+Key packages are collected into _key pools_ of packages with common attributes.
+In particular, all key packages in a key pool belong to the same client and use
+the same cipher suite and protocol version. In addition, an application can
+define a custom label for key pools, for example, on that specifies custom MLS
+extensions clients must support.
+
+When a client is added to an MLS group (typically after being discovered as
+described in {{client-discovery}}), the application (or a gateway in case of
+federation) requests a key package from one of the client's pools with
+attributes matching those used by the group. By default, the returned key
+package is immediately deleted, in order to avoid key material reuse across
+groups. To improve availability in situations where key pools may get depleted,
+a gateway MAY provide an option to support so-called final keys, i.e., a key
+pool can have one final key package that can be used multiple times but only
+after all other key packages are used up. However, this MUST come with a
+security warning.
+
+## Key Pool Creation
+
+A gateway MUST support key pool creation with the following request:
+
+~~~
+HTTP POST /apps/{appId}/clients/{clientId}/pools 
+
+Input:
+
+{
+    protocolVersion: uint16,
+    cipherSuite: uint16,
+    appLabel: String
+}
+
+Output:
+
+{
+    keyPoolId: UUIDv4
+}
+
+~~~
+
+If the above request is successful, a new key pool with unique identifier
+`keyPoolId` and provided attributes is created. Note that the `clientId` and
+`appId` are provided in the URI.
+
+## Key Pool Update
+
+A gateway MUST support updating the key packages in an existing pool using the
+following request:
+
+~~~
+HTTP PATCH /apps/{appId}/clients/{clientId}/pools/{keyPoolId}
+
+Input:
+
+{
+    keyPackages: [Base64(TLS-serialized MLSMessage)],
+    isReset: bool
+}
+
+Output:
+
+{
+    keyPackagesInPool: uint
+}
+~~~
+
+When processing the above request, a gateway SHOULD verify that each entry in
+`keyPackages` contains an MLS key package that is valid according to [MLS RFC].
+If the above check fails, the request has no effect.
+
+The request (if successful) results in the key pool `keyPoolId` (as in the URI)
+being updated as follows:
+
+1. If `isReset` is true, remove all key packages from the pool.
+2. In any case, insert, all key packages from `keyPackages` to the pool.
+
+The output of the request is the number of key packages in the pool after
+update.
+
+In addition, a gateway MAY support updating other key pool attributes. In this
+case, the above input has additional optional fields:
+
+~~~
+Input:
+
+{
+    keyPackages: [Base64(TLS-serialized MLSMessage)],
+    isReset: bool,
+    appLabel: String,
+    finalKey: Base64(TLS-serialized MLSMessage),
+}
+~~~
+
+If provided, `appLabel` replaces the respective attribute of the key pool.
+If the gateway supports final keys and `finalKey` is provided, the gateway
+SHOULD verify that `finalKey` contains an MLS key package that is valid
+according to [MLS RFC]. The `finalKey` is stored for the given key pool,
+replacing the previously stored final key (if present).
+
+## Key Package Retrieval
+
+A gateway MUST allow an application or gateway to retrieve a key package of a
+given client using the following request:
+
+~~~
+HTTP POST /apps/{appId}/clients/{clientId}/keyPackages
+
+Input:
+
+{
+    protocolVersion: uint16,
+    cipherSuite: uint16,
+    appLabel: String  // TODO mark optional somehow
+}
+
+Output:
+
+{
+    keyPackage: [Base64(TLS-serialized MLSMessage)]
+    isFinalKey: bool // TODO mark optional somehow
+}
+~~~
+
+The above request has the following effect:
+
+* An arbitrary key pool with attributes matching the provided `appId`,
+  `clientId`, `protocolVersion`, `cipherSuite` and `appLabel` is chosen. If
+  there is no such key pool, the request has no effect.
+* If the above key pool contains (non-final) key packages, a key package from
+  the pool is chosen (according to gatewey's policy), returned and deleted. The
+  `isFinalKey` flag in the output is set to false. The returned key package MUST
+  NOT be returned by any future fetch key package request.
+* Else, if there is a final key stored for the key pool, the output contains
+  this final key and the `isFinalKey` flag is set to true.
+* Else, the request has no effect.
+
+## Key Pool Deletion
+
+TODO
 
 # Example Usage
 
