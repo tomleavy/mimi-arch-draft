@@ -229,8 +229,6 @@ A client handle is a human readable name for a client.
 client handle from a client's credentials by fixing a range and calling
 'identifier' for the certificates in the range.
 
-{{?I-D.ietf-mls-protocol}}
-
 ~~~
 struct {
     uint8 start;
