@@ -429,6 +429,234 @@ TODO
 
 TODO
 
+# Managing Key Packages
+
+Each gateway implements a directory providing MLS key packages, which contain
+initial keying material of clients and can be used to add them to the group
+even when they are offline.
+
+Key packages are collected into _key pools_ of packages with common attributes.
+In particular, all key packages in a key pool belong to the same client and use
+the same cipher suite and protocol version. In addition, an application can
+define a custom label for key pools, for example, on that specifies custom MLS
+extensions clients must support.
+
+When a client is added to an MLS group (typically after being discovered as
+described in {{client-discovery}}), the application (or a gateway in case of
+federation) requests a key package from one of the client's pools with
+attributes matching those used by the group. By default, the returned key
+package is immediately deleted, in order to avoid key material reuse across
+groups. To improve availability in situations where key pools may get depleted,
+a gateway MAY provide an option to support so-called final keys, i.e., a key
+pool can have one final key package that can be used multiple times but only
+after all other key packages are used up. However, this MUST come with a
+security warning.
+
+## Key Pool Creation
+
+A gateway MUST support key pool creation with the following request:
+
+~~~
+HTTP POST /apps/{appId}/clients/{clientId}/pools 
+
+Input:
+
+{
+    protocolVersion: uint16,
+    cipherSuite: uint16,
+    appLabel: String
+}
+
+Output:
+
+{
+    keyPoolId: UUIDv4
+}
+
+~~~
+
+If the above request is successful, a new key pool with unique identifier
+`keyPoolId` and provided attributes is created. Note that the `clientId` and
+`appId` are provided in the URI.
+
+## Key Pool Update
+
+A gateway MUST support updating the key packages in an existing pool using the
+following request:
+
+~~~
+HTTP PATCH /apps/{appId}/clients/{clientId}/pools/{keyPoolId}
+
+Input:
+
+{
+    keyPackages: [Base64(TLS-serialized MLSMessage)],
+    isReset: bool
+}
+
+Output:
+
+{
+    keyPackagesInPool: uint
+}
+~~~
+
+When processing the above request, a gateway SHOULD verify that each entry in
+`keyPackages` contains an MLS key package that is valid according to [MLS RFC].
+If the above check fails, the request has no effect.
+
+The request (if successful) results in the key pool `keyPoolId` (as in the URI)
+being updated as follows:
+
+1. If `isReset` is true, remove all key packages from the pool.
+2. In any case, insert, all key packages from `keyPackages` to the pool.
+
+The output of the request is the number of key packages in the pool after
+update.
+
+In addition, a gateway MAY support updating other key pool attributes. In this
+case, the above input has additional optional fields:
+
+~~~
+Input:
+
+{
+    keyPackages: [Base64(TLS-serialized MLSMessage)],
+    isReset: bool,
+    appLabel: String,
+    finalKey: Base64(TLS-serialized MLSMessage),
+}
+~~~
+
+If provided, `appLabel` replaces the respective attribute of the key pool.
+If the gateway supports final keys and `finalKey` is provided, the gateway
+SHOULD verify that `finalKey` contains an MLS key package that is valid
+according to [MLS RFC]. The `finalKey` is stored for the given key pool,
+replacing the previously stored final key (if present).
+
+## Key Package Retrieval
+
+A gateway MUST allow an application or gateway to retrieve a key package of a
+given client using the following request:
+
+~~~
+HTTP POST /apps/{appId}/clients/{clientId}/keyPackages
+
+Input:
+
+{
+    protocolVersion: uint16,
+    cipherSuite: uint16,
+    optional appLabel: String
+}
+
+Output:
+
+{
+    keyPackage: Base64(TLS-serialized MLSMessage)
+    optional isFinalKey: bool
+}
+~~~
+
+The above request has the following effect:
+
+* An arbitrary key pool with attributes matching the provided `appId`,
+  `clientId`, `protocolVersion`, `cipherSuite` and `appLabel` is chosen. If
+  there is no such key pool, the request has no effect.
+* If the above key pool contains (non-final) key packages, a key package from
+  the pool is chosen (according to gatewey's policy), returned and deleted. The
+  `isFinalKey` flag in the output is set to false. The returned key package MUST
+  NOT be returned by any future fetch key package request.
+* Else, if there is a final key stored for the key pool, the output contains
+  this final key and the `isFinalKey` flag is set to true.
+* Else, the request has no effect.
+
+## Key Pool Deletion
+
+TODO
+
+# Managing Groups without Metadata Protection
+
+In this section we assume that group membership is not required to be hidden
+from gateways. For this case, each gateway implements functionality for
+filtering, ordering and delivering MLS handshake messages.
+
+At a high level, each gateway creates for each group a sequence of epochs. For
+each epoch, it stores all information clients need to transition to this epoch.
+For group current members, this includes MLS proposal and commit messages. For
+clients invited by other members, this includes MLS welcome messages and ratchet
+trees (one per epoch). The gateway keeps track of the tree itself, based on MLS
+control messages received from applications or other gateways. Finally, if a
+group enables joining via external commits, the gateway stores for external
+joiners an MLS group info message for the current epoch.
+
+Most important tasks of the gateway are: resolving conflicts in case multiple
+commits are created at the same time (all clients must agree on one of them) and
+validating received control messages (to the extent this is possible without
+being a group member).
+
+## Group Creation
+
+A gateway MUST support creation of a one-member group with the following
+request:
+
+~~~
+HTTP PUT /apps/{appId}/groups 
+
+Input:
+
+{
+    groupInfo: Base64(TLS-serialized MLSMessage),
+    ratchetTree: Base64(TLS-serialized [optional<Node>])
+}
+~~~
+
+The `groupInfo` and `ratchetTree` objects should be exported by the client who
+created the group before sending any MLS messages. A gateway MUST validate the
+above input using the following steps:
+
+* The `groupInfo` contains a valid MLS GroupInfo object.
+* `ratchetTree` is valid according to [MLS RFC] and is consistent with
+  `groupInfo`.
+* The epoch in `groupInfo` is `0` and the `ratchetTree` consists of a single
+  node.
+* The `group_id` in `groupInfo` is unique among all existing groups.
+
+After the group is created, it can be refered to by the `group_id` from
+`groupInfo`.
+
+## Group Evolution
+
+A group evolves when clients upload MLS proposal and commit packets. When a
+gateway receives such a packet from an application, it MUST immediately forward
+it to all gateways the application federates with.
+
+### Proposals
+
+~~~
+HTTP PUT /apps/{appId}/groups/{groupId}/proposals
+
+Input:
+
+{
+    packet: Base64(TLS-serialized MLSMessage)
+}
+~~~
+
+### Commits
+
+~~~
+HTTP PUT /apps/{appId}/groups/{groupId}/epochs
+
+Input:
+
+{
+    commitPacket: Base64(TLS-serialized MLSMessage),
+    optional groupInfo: Base64(TLS-serialized MLSMessage),
+    optional welcomePacket: Base64(TLS-serialized MLSMessage)
+}
+~~~
+
 # Example Usage
 
 1. Defining an application
