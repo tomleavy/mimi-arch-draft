@@ -412,7 +412,7 @@ Output:
     identities: [
         {
             clientId: UUIDv4,
-            clientIdentity: Base64(IdentityProvider.client_identity),
+            clientHandle: Base64(IdentityProvider.client_handle),
             tags: [String]
         },
     ...
