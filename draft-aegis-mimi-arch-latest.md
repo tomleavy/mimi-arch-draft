@@ -435,29 +435,29 @@ Each gateway implements a directory providing MLS key packages, which contain
 initial keying material of clients and can be used to add them to the group
 even when they are offline.
 
-Key packages are collected into _key pools_ of packages with common attributes.
-In particular, all key packages in a key pool belong to the same client and use
+Key packages are collected into _key queues_ of packages with common attributes.
+In particular, all key packages in a key queue belong to the same client and use
 the same cipher suite and protocol version. In addition, an application can
-define a custom label for key pools, for example, on that specifies custom MLS
+define a custom label for key queues, for example, on that specifies custom MLS
 extensions clients must support.
 
 When a client is added to an MLS group (typically after being discovered as
 described in {{client-discovery}}), the application (or a gateway in case of
-federation) requests a key package from one of the client's pools with
+federation) requests a key package from one of the client's queues with
 attributes matching those used by the group. By default, the returned key
 package is immediately deleted, in order to avoid key material reuse across
-groups. To improve availability in situations where key pools may get depleted,
+groups. To improve availability in situations where key queue may get depleted,
 a gateway MAY provide an option to support so-called final keys, i.e., a key
-pool can have one final key package that can be used multiple times but only
+queue can have one final key package that can be used multiple times but only
 after all other key packages are used up. However, this MUST come with a
 security warning.
 
-## Key Pool Creation
+## Key Queue Creation
 
-A gateway MUST support key pool creation with the following request:
+A gateway MUST support key queue creation with the following request:
 
 ~~~
-HTTP POST /apps/{appId}/clients/{clientId}/pools 
+HTTP POST /apps/{appId}/clients/{clientId}/queues 
 
 Input:
 
@@ -470,22 +470,25 @@ Input:
 Output:
 
 {
-    keyPoolId: UUIDv4
+    keyQueueId: UUIDv4
 }
 
 ~~~
 
-If the above request is successful, a new key pool with unique identifier
+If the above request is successful, a new key queue with unique identifier
 `keyPoolId` and provided attributes is created. Note that the `clientId` and
 `appId` are provided in the URI.
 
+A gateway MUST NOT contain multiple key queues with the same combination of
+protocolVersion, cipherSuite, and appLabel properties. 
+
 ## Key Pool Update
 
-A gateway MUST support updating the key packages in an existing pool using the
+A gateway MUST support updating the key packages in an existing queue using the
 following request:
 
 ~~~
-HTTP PATCH /apps/{appId}/clients/{clientId}/pools/{keyPoolId}
+HTTP PATCH /apps/{appId}/clients/{clientId}/queues/{keyPoolId}
 
 Input:
 
@@ -505,16 +508,16 @@ When processing the above request, a gateway SHOULD verify that each entry in
 `keyPackages` contains an MLS key package that is valid according to [MLS RFC].
 If the above check fails, the request has no effect.
 
-The request (if successful) results in the key pool `keyPoolId` (as in the URI)
+The request (if successful) results in the key queue `keyPoolId` (as in the URI)
 being updated as follows:
 
-1. If `isReset` is true, remove all key packages from the pool.
-2. In any case, insert, all key packages from `keyPackages` to the pool.
+1. If `isReset` is true, remove all key packages from the queue.
+2. In any case, insert, all key packages from `keyPackages` to the queue.
 
-The output of the request is the number of key packages in the pool after
+The output of the request is the number of key packages in the queue after
 update.
 
-In addition, a gateway MAY support updating other key pool attributes. In this
+In addition, a gateway MAY support updating other key queue attributes. In this
 case, the above input has additional optional fields:
 
 ~~~
@@ -528,10 +531,10 @@ Input:
 }
 ~~~
 
-If provided, `appLabel` replaces the respective attribute of the key pool.
+If provided, `appLabel` replaces the respective attribute of the key queue.
 If the gateway supports final keys and `finalKey` is provided, the gateway
 SHOULD verify that `finalKey` contains an MLS key package that is valid
-according to [MLS RFC]. The `finalKey` is stored for the given key pool,
+according to [MLS RFC]. The `finalKey` is stored for the given key queue,
 replacing the previously stored final key (if present).
 
 ## Key Package Retrieval
@@ -540,7 +543,7 @@ A gateway MUST allow an application or gateway to retrieve a key package of a
 given client using the following request:
 
 ~~~
-HTTP POST /apps/{appId}/clients/{clientId}/keyPackages
+HTTP GET /apps/{appId}/clients/{clientId}/keyPackage
 
 Input:
 
@@ -548,6 +551,7 @@ Input:
     protocolVersion: uint16,
     cipherSuite: uint16,
     optional appLabel: String
+    receiver_client_id: String
 }
 
 Output:
@@ -560,16 +564,37 @@ Output:
 
 The above request has the following effect:
 
-* An arbitrary key pool with attributes matching the provided `appId`,
+// TODO: Should we really have isFinalKey or is that potentially a security
+problem and we should say that the pool should just return an error in the event
+there are no more keys.
+
+* A key queue with attributes matching the provided `appId`,
   `clientId`, `protocolVersion`, `cipherSuite` and `appLabel` is chosen. If
-  there is no such key pool, the request has no effect.
-* If the above key pool contains (non-final) key packages, a key package from
-  the pool is chosen (according to gatewey's policy), returned and deleted. The
-  `isFinalKey` flag in the output is set to false. The returned key package MUST
-  NOT be returned by any future fetch key package request.
-* Else, if there is a final key stored for the key pool, the output contains
+  there is no such key queue, the request has no effect.
+* If a non-final key in the queue is assigned to `receiver_client_id`, and that
+  key package is not expired then that key should be returned.
+* Else, if the above key queue contains (non-final) key packages, the first
+  non-expired key package that has not been assigned a receiver client id
+  should be assigned to the provided `receiver_client_id` and returned with the
+  `isFinalKey` flag set to false. Key packages SHOULD be sorted by the
+  `not-after` property of their `Lifetime` when choosing a key to return.
+* Else, if there is a final key stored for the key queue, the output contains
   this final key and the `isFinalKey` flag is set to true.
 * Else, the request has no effect.
+
+### Advancing a Key Package Queue 
+
+Key package retrieval is idempotent by design. Repeated requests with the same
+queue properties and `receiver_client_id` combination MUST produce the same key
+package until the queue is advanced. Advancing the key queue is dependent on
+the key package being used by a meaningful group operation as described in
+[`GroupEvolution`].
+
+Key queues MUST be automatically advanced beyond expired key packages regardless
+of an individual key package's `receiver_client_id` property. A key package is 
+determined to be expired if the `not-after` property of the key package's
+`Lifetime` is beyond the current local server time. Applications MAY decide to
+consider a key package expired earlier than its technical expiration. 
 
 ## Key Pool Deletion
 
@@ -596,6 +621,10 @@ validating received control messages (to the extent this is possible without
 being a group member).
 
 ## Group Creation
+
+// TODO: Make sure to mention that gateways MUST enforce that a key package is
+only used once if it is marked as non-final in the group management section.
+
 
 A gateway MUST support creation of a one-member group with the following
 request:
