@@ -367,9 +367,9 @@ Output:
 
 ~~~
 
-In the above figure, the returned `clientId` is the new unique
-identifier assigned to the client by the identity service. Services MUST ensure
-that `ClientID` is unique amongst all registered clients. 
+In the above figure, the returned `clientId` is the new identifier assigned to
+the client by the identity service. Services MUST ensure that `clientId` is
+unique amongst all registered clients. 
 
 A client MAY be editable by the following request:
 
