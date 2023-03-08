@@ -389,7 +389,7 @@ Input:
 }
 ~~~
 
-Patching an existing client MUST fail if changing `ClientHandle` results in a
+Patching an existing client MUST fail if changing `clientHandle` results in a
 conflict with another existing client.
 
 ## Client Discovery
