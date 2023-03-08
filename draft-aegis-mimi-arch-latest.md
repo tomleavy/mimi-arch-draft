@@ -242,7 +242,7 @@ fn client_handle(CertificateChain cert_chain, X509ClientHandleRange range) {
 
 ### X.509 Account Identifiers
 
-Many messaging systems use of multi-client (e.g. multi-device) accounts.
+Many messaging systems use multi-client (e.g. multi-device) accounts.
 Accounts are also refered to as users {{?I-D.draft-mahy-mimi-identity}}. Account
 handles are calculated like client handles but based on the certificate
 at the Account Handle offset (instead of Client Handle range).
