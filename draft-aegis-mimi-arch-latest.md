@@ -385,7 +385,7 @@ HTTP PATCH /apps/{appId}/clients/{clientId}
 Input:
 
 {
-   ClientHandle: Base64(IdentityProvider.client_identity),
+   clientHandle: Base64(IdentityProvider.client_identity),
    tagsToAdd: [String],
    tagsToRemove: [String]
 }
