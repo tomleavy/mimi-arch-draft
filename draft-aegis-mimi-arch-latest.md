@@ -371,14 +371,15 @@ define a custom label for key pools, for example, on that specifies custom MLS
 extensions clients must support.
 
 When a client is added to an MLS group (typically after being discovered as
-described in {{client-discovery}}), the application requests a key package
-from one of the client's pools with attributes matching those used by the group.
-By default, the returned key package is immediately deleted, in order to
-avoid key material reuse across groups. To improve availability in situations
-where key pools may get depleted, a gateway MAY provide an option to support
-so-called final keys, i.e., a key pool can have one final key package that can
-be used multiple times but only after all other key packages are used up.
-However, this MUST come with a security warning.
+described in {{client-discovery}}), the application (or a gateway in case of
+federation) requests a key package from one of the client's pools with
+attributes matching those used by the group. By default, the returned key
+package is immediately deleted, in order to avoid key material reuse across
+groups. To improve availability in situations where key pools may get depleted,
+a gateway MAY provide an option to support so-called final keys, i.e., a key
+pool can have one final key package that can be used multiple times but only
+after all other key packages are used up. However, this MUST come with a
+security warning.
 
 ## Key Pool Creation
 
@@ -464,8 +465,8 @@ replacing the previously stored final key (if present).
 
 ## Key Package Retrieval
 
-A gateway MUST allow an application to retrieve a key package of a given client
-using the following request:
+A gateway MUST allow an application or gateway to retrieve a key package of a
+given client using the following request:
 
 ~~~
 HTTP POST /apps/{appId}/clients/{clientId}/keyPackages
@@ -502,10 +503,6 @@ The above request has the following effect:
 ## Key Pool Deletion
 
 TODO
-
-# Group State Service
-
-Define the interface.
 
 # Example Usage
 
