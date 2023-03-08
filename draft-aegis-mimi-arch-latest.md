@@ -229,6 +229,8 @@ A client handle is a human readable name for a client.
 client handle from a client's credentials by fixing a range and calling
 'identifier' for the certificates in the range.
 
+{{?I-D.ietf-mls-protocol}}
+
 ~~~
 struct {
     uint8 start;
@@ -502,8 +504,8 @@ Output:
 ~~~
 
 When processing the above request, a gateway SHOULD verify that each entry in
-`keyPackages` contains an MLS key package that is valid according to [MLS RFC].
-If the above check fails, the request has no effect.
+`keyPackages` contains an MLS key package that is valid according to 
+{{?I-D.ietf-mls-protocol}}. If the above check fails, the request has no effect.
 
 The request (if successful) results in the key pool `keyPoolId` (as in the URI)
 being updated as follows:
@@ -531,8 +533,8 @@ Input:
 If provided, `appLabel` replaces the respective attribute of the key pool.
 If the gateway supports final keys and `finalKey` is provided, the gateway
 SHOULD verify that `finalKey` contains an MLS key package that is valid
-according to [MLS RFC]. The `finalKey` is stored for the given key pool,
-replacing the previously stored final key (if present).
+according to {{?I-D.ietf-mls-protocol}}. The `finalKey` is stored for the given 
+key pool, replacing the previously stored final key (if present).
 
 ## Key Package Retrieval
 
