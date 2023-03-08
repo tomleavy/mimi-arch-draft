@@ -361,7 +361,7 @@ HTTP POST /apps/{appId}/clients
 Input:
 
 {
-    ClientHandle: Base64(IdentityProvider.client_handle),
+    clientHandle: Base64(IdentityProvider.client_handle),
     tags: [String]
 }
 
