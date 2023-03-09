@@ -572,7 +572,9 @@ there are no more keys.
   `clientId`, `protocolVersion`, `cipherSuite` and `appLabel` is chosen. If
   there is no such key queue, the request has no effect.
 * If a non-final key in the queue is assigned to `receiver_client_id`, and that
-  key package is not expired then that key should be returned.
+  key package is not expired, then that key should be returned. The queue will
+  not advance until the current key package is used for a meaningful group
+  operation as described in [`GroupEvolution`].
 * Else, if the above key queue contains (non-final) key packages, the first
   non-expired key package that has not been assigned a receiver client id
   should be assigned to the provided `receiver_client_id` and returned with the
@@ -586,9 +588,11 @@ there are no more keys.
 
 Key package retrieval is idempotent by design. Repeated requests with the same
 queue properties and `receiver_client_id` combination MUST produce the same key
-package until the queue is advanced. Advancing the key queue is dependent on
-the key package being used by a meaningful group operation as described in
-[`GroupEvolution`].
+package until the queue is advanced. A queue is advanced by deleting the key
+package assoiciated with a particular `receiver_client_id`, which will allow
+that receiver to get a new key package the next time one is requested.
+Advancing the key queue is dependent on the key package being used by a
+meaningful group operation as described in [`GroupEvolution`].
 
 Key queues MUST be automatically advanced beyond expired key packages regardless
 of an individual key package's `receiver_client_id` property. A key package is 
