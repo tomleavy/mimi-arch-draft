@@ -438,7 +438,7 @@ even when they are offline.
 Key packages are collected into _key queues_ of packages with common attributes.
 In particular, all key packages in a key queue belong to the same client and use
 the same cipher suite and protocol version. In addition, an application can
-define a custom label for key queues, for example, on that specifies custom MLS
+define a custom label for key queues, for example, one that specifies custom MLS
 extensions clients must support.
 
 When a client is added to an MLS group (typically after being discovered as
@@ -476,19 +476,19 @@ Output:
 ~~~
 
 If the above request is successful, a new key queue with unique identifier
-`keyPoolId` and provided attributes is created. Note that the `clientId` and
+`keyQueueId` and provided attributes is created. Note that the `clientId` and
 `appId` are provided in the URI.
 
 A gateway MUST NOT contain multiple key queues with the same combination of
 protocolVersion, cipherSuite, and appLabel properties. 
 
-## Key Pool Update
+## Key Queue Update
 
 A gateway MUST support updating the key packages in an existing queue using the
 following request:
 
 ~~~
-HTTP PATCH /apps/{appId}/clients/{clientId}/queues/{keyPoolId}
+HTTP PATCH /apps/{appId}/clients/{clientId}/queues/{keyQueueId}
 
 Input:
 
@@ -508,7 +508,7 @@ When processing the above request, a gateway SHOULD verify that each entry in
 `keyPackages` contains an MLS key package that is valid according to [MLS RFC].
 If the above check fails, the request has no effect.
 
-The request (if successful) results in the key queue `keyPoolId` (as in the URI)
+The request (if successful) results in the key queue `keyQueueId` (as in the URI)
 being updated as follows:
 
 1. If `isReset` is true, remove all key packages from the queue.
