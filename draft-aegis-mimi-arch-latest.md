@@ -173,10 +173,10 @@ provider. It has the following properties:
 ## X.509 Identity Provider
 
 The X.509 identify provider allows for hierarchical identities based on
-certificate chains. The provider is configured via the `X509Paremter` struct. 
-Besides just clients, depending on the configuration the provider may also
-support accounts and/or domains. Conceptually, an account is a collection of
-clients (usually belonging to one user) and a domain is a collection of accounts
+certificate chains. The provider is configured via the `X509Parameters` struct. 
+Besides clients, depending on how the provider is configured it may also support
+accounts and/or domains. Conceptually, an account is a collection of clients
+(usually belonging to one user) and a domain is a collection of accounts
 (e.g. belonging to a particular organization).
 
 The only credential supported by the X509 Identity Provider are `x509` 
@@ -283,21 +283,21 @@ Name fields of a range of certificates in client's certificate chain credential.
 The range to use is defined by the `start` and `end` offsets in the 
 `endpoint_handle_range` field of the `X509Parameters` struct. Offsets begin at
 the leaf certificate wich has offset 0 and count upwards towards the root
-certificate in the chain. Each Common Name field in the range is seperated in
-the client handle from the previous one with a ":" delimiter.
+certificate in the chain. Each Common Name field in the range is seperated from
+the next in the client handle using a ":" character as delimiter.
 
 ### X.509 Account Handles
 
-When X509 Identity Provider is configured to use accounts a client's account
+When the X509 Identity Provider is configured to use accounts a client's account
 handle is calculated just like its end point handle but using only the
-certificate with the offset given in the `account_handle_offset` field in the
+certificate with the offset given by the `account_handle_offset` field in the
 `X509Parameters` struct.
 
 ### X.509 Domains Names
 
-When X509 Identity Provider is configured to use domains a client's domain name
-is calculated just like its end point handle but using only the certificate with
-the offset given in the `domain_name_offset` field in the `X509Parameters`
+When the X509 Identity Provider is configured to use domains a client's domain
+name is calculated just like its end point handle but using only the certificate
+with the offset given in the `domain_name_offset` field in the `X509Parameters`
 struct.
 
 ### Handing Timestamps 
@@ -350,9 +350,9 @@ represents attributes associated with the client, for example:
 
 Tags of a given client are provided by the application. The service
 allows the application to search for clients by tags. For example,
-searching by tag 1. above allows to list all clients owned by
+searching by the above tag 1. allows listing all clients owned by
 `alice@org`, which is a typical scenario in messaging applications where
-Bob invites a multi-device account of Alice to join a chat. Searching by a tag 
+Bob invites a multi-device account of Alice to join a chat. Searching by the tag 
 2. above allows to add an arbitrary moderator, or all clients owned by
 entities with the right clearance.
 
@@ -380,8 +380,8 @@ Output:
 ~~~
 
 In the above figure, the returned `clientId` is the new identifier assigned to
-the client by the identity service. Services MUST ensure that `clientId` is
-unique amongst all registered clients. 
+the client by the identity service. Services MUST ensure that `clientId` and
+`clientHandle` are both unique among all registered clients. 
 
 A client MAY be editable by the following request:
 
