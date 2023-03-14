@@ -303,29 +303,34 @@ propose their removal. Other clients / Server MUST verify this has been done
 based on the timestamp of the message assigned by the server and reject
 accordingly.
 
-## Applications
+# Applications
 
 A gateway can manage information for multiple applications that may or may not
-federate with each other. An application is uniquely identified by a unique
-ApplicationID and is specified as:
+federate with each other. An application is identified by an 
+ApplicationID and its behavior is defined by an ApplicationConfiguration.
+ApplicationID is defined as a UUIDv4 string and MUST be unique across all
+gateways that are federated with one another. // TODO: Link to UUIDv4 definition
 
 ~~~
 struct {
     UUIDv4 id;
-} ApplicationId;
-~~~
-
-~~~
-struct {
-    ApplicationId: id;
     IdentityConfiguration identity_configuration;
-    // TODO: Other stuff???
+    // TODO: Is additional configuration needed?
 } ApplicationConfiguration;
 ~~~
 
-An application MUST be configured with an IdentityProvider that matches all of
-the other applications that it needs to federate with to ensure
-interoperability.
+In order for interoperable federtation to exist between domains, the
+ApplicationConfiguration for a particular ApplicationId MUST match between
+each domain that is participating. Application configurations hosted on a
+particular gateway MAY be public by providing access to the following API route:
+
+~~~
+HTTP GET /apps 
+
+Output:
+
+[ApplicationConfiguration]
+~~~
 
 # Managing Identities
 
@@ -359,7 +364,7 @@ HTTP POST /apps/{appId}/clients
 Input:
 
 {
-    clientHandle: Base64(IdentityProvider.client_handle),
+    clientHandle: IdentityProvider.client_handle,
     tags: [String]
 }
 
@@ -383,7 +388,7 @@ HTTP PATCH /apps/{appId}/clients/{clientId}
 Input:
 
 {
-   clientHandle: Base64(IdentityProvider.client_handle),
+   clientHandle: IdentityProvider.client_handle,
    tagsToAdd: [String],
    tagsToRemove: [String]
 }
@@ -412,7 +417,7 @@ Output:
     identities: [
         {
             clientId: UUIDv4,
-            clientHandle: Base64(IdentityProvider.client_handle),
+            clientHandle: IdentityProvider.client_handle,
             tags: [String]
         },
     ...
