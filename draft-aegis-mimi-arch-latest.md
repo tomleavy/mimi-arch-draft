@@ -376,6 +376,7 @@ for as long as the client uses the system. In contrast, a client's
 _handle_ may change (for instance, if they change a phone's hostname).
 Further, each client is (optionally) assigned a set of tags. Each tag
 represents attributes associated with the client, for example:
+
 1. A tag `account_id:alice@org` indicates the client belongs to the (domain
    scoped) account `alice@org`.
 2. Tags `moderator` or `clearance:top_secret` indicates the clients have certain
@@ -435,8 +436,8 @@ conflict with another existing client.
 
 ## Client Discovery
 
-An application can list identifiers of all clients with a given
-tag using the following request:
+An application can list identifiers of all clients with a given tag using the
+following request:
 
 ~~~
 HTTP GET /apps/{appId}/clients 
@@ -444,6 +445,7 @@ HTTP GET /apps/{appId}/clients
 Input:
 
 {
+    optional domain: String,
     tag: String
 }
 
@@ -461,6 +463,14 @@ Output:
 }
 
 ~~~
+
+For applications that use federation, the `domain` value MUST be provided. A
+gateway processes the request as follows. If `domain` is provided and it is
+different than the processing gateway's domain, then the gateway transparently
+passes the input to a gateway from `domain`, waits for the output and passes it
+to the calling entity. Otherwise, it returns the registered identity data for
+all clients that have `tag` associated with them: their `clientId`,
+`clientHandle` and all tags.
 
 ## Identity Retrieval
 
