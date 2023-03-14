@@ -589,10 +589,11 @@ HTTP GET /apps/{appId}/clients/{clientId}/keyPackage
 Input:
 
 {
+    optional domain: String,
     protocolVersion: uint16,
     cipherSuite: uint16,
     optional appLabel: String
-    receiver_client_id: String
+    receiver_client_id: String,
 }
 
 Output:
@@ -603,11 +604,12 @@ Output:
 }
 ~~~
 
-The above request has the following effect:
-
-// TODO: Should we really have isFinalKey or is that potentially a security
-problem and we should say that the pool should just return an error in the event
-there are no more keys.
+For applications that use federation, the `domain` value MUST be provided. A
+gateway processes the request as follows. If `domain` is provided and it is
+different than the processing gateway's domain, then the gateway transparently
+passes the input to a gateway from `domain`, waits for the output and passes it
+to the calling entity. Otherwise, it processes the request using the following
+steps:
 
 * A key queue with attributes matching the provided `appId`,
   `clientId`, `protocolVersion`, `cipherSuite` and `appLabel` is chosen. If
