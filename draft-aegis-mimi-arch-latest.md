@@ -13,7 +13,7 @@ stand_alone: yes
 pi: [toc, sortrefs, symrefs]
 
 author:
- -  fullname: Joel ALwen
+ -  fullname: Joel Alwen
     organization: Amazon - Wickr
     email: alwenjo@amazon.com
 
@@ -243,7 +243,7 @@ fn client_handle(CertificateChain cert_chain, X509ClientHandleRange range) {
 ### X.509 Account Identifiers
 
 Many messaging systems use multi-client (e.g. multi-device) accounts.
-Accounts are also refered to as users {{?I-D.draft-mahy-mimi-identity}}. Account
+Accounts are also referred to as users {{?I-D.draft-mahy-mimi-identity}}. Account
 handles are calculated like client handles but based on the certificate
 at the Account Handle offset (instead of Client Handle range).
 
@@ -319,7 +319,7 @@ struct {
 } ApplicationConfiguration;
 ~~~
 
-In order for interoperable federtation to exist between domains, the
+In order for interoperable federation to exist between domains, the
 ApplicationConfiguration for a particular ApplicationId MUST match between
 each domain that is participating. Application configurations hosted on a
 particular gateway MAY be public by providing access to the following API route:
@@ -594,7 +594,7 @@ there are no more keys.
 Key package retrieval is idempotent by design. Repeated requests with the same
 queue properties and `receiver_client_id` combination MUST produce the same key
 package until the queue is advanced. A queue is advanced by deleting the key
-package assoiciated with a particular `receiver_client_id`, which will allow
+package associated with a particular `receiver_client_id`, which will allow
 that receiver to get a new key package the next time one is requested.
 Advancing the key queue is dependent on the key package being used by a
 meaningful group operation as described in {{group-evolution}}.
@@ -759,7 +759,7 @@ A gateway processes the above request using the following steps:
 * Verify that `commitPacket` is a valid commit in the context of the current
   epoch of the group identified by `group_id`, according to
   {{!I-D.ietf-mls-protocol}}. That is, the gateway performs all checks a group
-  member does, except those that require group secrets: veriying the membership
+  member does, except those that require group secrets: verifying the membership
   and confirmation tags.
 * Update the state of the group identified by `group_id` as follows:
   * Add a new epoch to `epochs` with the commit packet set to `commitPacket`.
