@@ -180,7 +180,7 @@ accounts and/or domains. Conceptually, an account is a collection of clients
 (e.g. belonging to a particular organization).
 
 The only credential type supported by the X509 Identity Provider is `x509` .
-credentials which consist of a chain of 1 or more X.509 certificates. 
+An X.509 credential contains a chain of 1 or more X.509 certificates, encoded as specified in {{!I-D.ietf-mls-protocol}}.
 Certificate chains MUST be validated according to the rules in {{!RFC5280}} using
 the trust roots agreed upon by the (TODO: Some sort of extension dealing with
 trust root negotiation).
