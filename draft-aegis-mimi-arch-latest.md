@@ -253,9 +253,10 @@ If (params.use_domains == true) && (params.use_accounts == true) {
 ### X.509 Identifiers
 
 Each client has a handle (i.e. a human readable name). If the X509 Identity
-Provider is configured to not use domains then client handles are unique across
-all clients registered in the application. However, if domains are being used
-then client handles are only unique within scope of the client's domain.
+Provider is configured to not use domains then client handles MUST be unique
+across all clients registered in the application. However, if domains are being
+used then client handles MUST only be unique within scope of the client's
+domain.
 
 If the Provider is configured to use accounts then a client handle is defined
 to be the concatenation of its account handle followed by its end point handle
