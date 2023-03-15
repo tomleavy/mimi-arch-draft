@@ -223,7 +223,7 @@ Assert (params.endpoint_handle_range.end >= params.endpoint_handle_range.start)
 ~~~
 
 If the X509 Identity Provider is configured to use accounts then the account
-handel offset MUST strictly succeeds the end point handle range in the
+handel offset MUST strictly succeed the end point handle range in the
 certificate chain counting from the leaf certificate up. 
 
 ~~~
