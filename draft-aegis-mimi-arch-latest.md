@@ -146,7 +146,7 @@ interface {
 ~~~
 
 Each identity provider has a unique value that identifies its behavior along
-with opaque parameters that help synchronize various options across
+with opaque parameters which help synchronize various options across
 applications. 
 
 ~~~
@@ -157,6 +157,8 @@ struct {
     opaque parameters<V>;
 } IdentityConfiguration;
 ~~~
+
+The rest of this section describes two examples of Identity Providers.
 
 ## Basic Identity Provider 
 
@@ -170,127 +172,134 @@ provider. It has the following properties:
 
 ## X.509 Identity Provider
 
-The X.509 identify provider allows for a hierarchical identity that is based
-upon a certificate chain. x509 is the only credential type supported.
-Certificate chains MUST be validated according to the rules in RFC 5280 using
+The X.509 identify provider allows for hierarchical identities based on
+certificate chains. The provider is configured via the `X509Parameters` struct. 
+Besides clients, depending on how the provider is configured it may also support
+accounts and/or domains. Conceptually, an account is a collection of clients
+(usually belonging to one user) and a domain is a collection of accounts
+(e.g. belonging to a particular organization).
+
+The only credential type supported by the X509 Identity Provider is `x509` .
+An X.509 credential contains a chain of 1 or more X.509 certificates, encoded as specified in {{!I-D.ietf-mls-protocol}}.
+Certificate chains MUST be validated according to the rules in {{!RFC5280}} using
 the trust roots agreed upon by the (TODO: Some sort of extension dealing with
 trust root negotiation).
 
 ~~~
 struct {
-   uint64 msg_timestamp;
+    uint64 msg_timestamp;
 } X509ApplicationContext;
 
 struct {
-    X509IdentityRange range;
+    uint8 start;
+    uint8 end<0...255>;
+} X509DeviceHandleRange
+
+struct {
+    bool use_accounts;
+    bool use_domains:
+    X509DeviceHandleRange device_handle_range;
+    select (use_accounts) {
+        case true:
+            uint8 account_handle_offset;
+        case false:
+            struct {}
+    }
+    select (use_domains) {
+        case true:
+            uint8 domain_name_offset;
+        case false:
+            struct {}
+    }
 } X509Parameters;
 ~~~
 
+A given parameter set `X509Parameters params` is valid if the following
+conditions are all met. The device handle range MUST not end before it
+starts.
+
+~~~
+Assert (params.device_handle_range.end >= params.device_handle_range.start)
+~~~
+
+If the X509 Identity Provider is configured to use accounts then the account
+handel offset MUST strictly succeed the device handle range in the
+certificate chain counting from the leaf certificate up. 
+
+~~~
+If (params.use_accounts == true) {
+    Assert (params.account_handle_offset > params.device_handle_range.end)
+}
+~~~~
+
+If the provider is configured to use domains then the domain name offset MUST
+strictly succeeds the device handle range in the certificate chain counting
+from the leaf certificate up.
+
+~~~
+If (params.user_domains == true) {
+    Assert (params.domain_name_offset > params.device_handle_range.end)
+}
+~~~
+
+Finally, if both domains and accounts are used then the domain name offset MUST
+also strictly succeed the account handle offset.
+
+~~~
+If (params.use_domains == true) && (params.use_accounts == true) {
+    Assert (params.domain_name_offset > params.account_handle_offset)
+~~~~
+
 ### X.509 Identifiers
 
-Identifiers (e.g. handles for clients) are derived by iterating through a subset
-of X.509 subject Common Name fields found within the client's certificate chain.
-Common Name fields MUST not contain any of the 5 special characters "@", "/",
-"#", "$" and ":". The range of certificates in the chain to used in the
-derivation is defined as starting with `start` values from the leaf and ending
-with `end` values from the leaf.
+Each client has a handle (i.e. a human readable name). If the X509 Identity
+Provider is configured to not use domains then client handles MUST be unique
+across all clients registered in the application. However, if domains are being
+used then client handles MUST only be unique within scope of the client's
+domain.
+
+If the Provider is configured to use accounts then a client handle is defined
+to be the concatenation of its account handle followed by its device handle
+seperated by a "/". When accounts are not used the client handle is simply its
+device handle.
 
 ~~~
-fn identifier(CertificateChain cert_chain, uint8 start, uint8 end) {
-    string id = new String;
-    bool first = true;
-    
-    for certificate in cert_chain[start...end] {
-        let common_name = certificate.subject.common_name;
-
-        if (!common_name) {
-            throw "Common name is required";
-        }
-        
-        if (common_name.contains("@","/","#","$",":") {
-            throw "Common names may not contain @/#$: characters.";
-        }
-
-        if (!first) {
-            id.append(":");
-        } else {
-            first = false;
-        }
-        id.append(common_name);
-    }
-
-    return id;
+If (params.use_accounts == true) {
+    client_handle := account_handle + "/" + device_handle;
+} Else {
+    client_handle := device_handle;
 }
 ~~~
 
-### X.509 Client Handles
-A client handle is a human readable name for a client.
-{{?I-D.draft-mahy-mimi-identity}} The X.509 identity provider extracts the
-client handle from a client's credentials by fixing a range and calling
-'identifier' for the certificates in the range.
+End piont handles, account handles (when used) and domain names (when used) are
+derived from subject Common Name fields in a client's credential certificate
+chain as described bellow. To ensure unambiguous URI's for clients and accounts
+(as described in {{?I-D.draft-mahy-mimi-identity}}) the Common Name fields found
+used to derive the handles MUST NOT contain any of the 5 special characters
+"@", "/", "#", "$" and ":". 
 
-~~~
-struct {
-    uint8 start;
-    uint8 end<0...255>;
-} X509ClientHandleRange
+### X.509 Device Handles
+A client's device handle is derived by concatenating the X.509 subject Common
+Name fields of a range of certificates in client's certificate chain credential.
+The range to use is defined by the `start` and `end` offsets in the 
+`device_handle_range` field of the `X509Parameters` struct. Offsets begin at
+the leaf certificate wich has offset 0 and count upwards towards the root
+certificate in the chain. Each Common Name field in the range is seperated from
+the next in the client handle using a ":" character as delimiter.
 
-fn client_handle(CertificateChain cert_chain, X509ClientHandleRange range) {
-    return identifier(cert_chain, range.start, range.end)
-}
-~~~
+### X.509 Account Handles
 
-### X.509 Account Identifiers
-
-Many messaging systems use multi-client (e.g. multi-device) accounts.
-Accounts are also refered to as users {{?I-D.draft-mahy-mimi-identity}}. Account
-handles are calculated like client handles but based on the certificate
-at the Account Handle offset (instead of Client Handle range).
-
-~~~
-uint8 X509AcntHandleOffset;
-
-fn acount_identifier(CertificateChain cert_chain, X509AcntHandleOffset offset) {
-    return identifier(cert_chain, offset, offset)
-}
-~~~
-
-The Account Handle offset strictly succeeds the Client Handle range in the
-certificate chain counting from the leaf certificate up.
-
-~~~
-X509AcntHandleOffset > X509ClientHandleRange.end
-~~~~
+When the X509 Identity Provider is configured to use accounts a client's account
+handle is calculated just like its device handle but using only the
+certificate with the offset given by the `account_handle_offset` field in the
+`X509Parameters` struct.
 
 ### X.509 Domains Names
 
-Federated messaging systems often associate accounts with a domain (e.g. that of
-a home server hosting the account). Domain Names are calculated just like
-Account Handles but using the Domain Name offset in place of the Account
-Handle offset.
-
-~~~
-uint8 X509DomainNameOffset;
-
-fn domain_identifier(CertificateChain cert_chain, X509DomainNameOffset offset) {
-    return identifier(cert_chain, offset, offset)
-}
-~~~
-
-The Domain Name offset strictly succeeds the Client Handle range in the
-certificate chain counting from the leaf certificate up.
-
-~~~
-X509DomainIDOffset > X509ClientHandleRange.end
-~~~~
-
-When Account identifiers are used then the Domain Name offset must also
-strictly succeed the Account Handle offset.
-
-~~~
-X509DomainIDOffset > X509AccountIDRange.end
-~~~~
-
+When the X509 Identity Provider is configured to use domains a client's domain
+name is calculated just like its device handle but using only the certificate
+with the offset given in the `domain_name_offset` field in the `X509Parameters`
+struct.
 
 ### Handing Timestamps 
 
@@ -342,9 +351,9 @@ represents attributes associated with the client, for example:
 
 Tags of a given client are provided by the application. The service
 allows the application to search for clients by tags. For example,
-searching by tag 1. above allows to list all clients owned by
+searching by the above tag 1. allows listing all clients owned by
 `alice@org`, which is a typical scenario in messaging applications where
-Bob invites a multi-device account of Alice to join a chat. Searching by a tag 
+Bob invites a multi-device account of Alice to join a chat. Searching by the tag 
 2. above allows to add an arbitrary moderator, or all clients owned by
 entities with the right clearance.
 
@@ -372,8 +381,8 @@ Output:
 ~~~
 
 In the above figure, the returned `clientId` is the new identifier assigned to
-the client by the identity service. Services MUST ensure that `clientId` is
-unique amongst all registered clients. 
+the client by the identity service. Services MUST ensure that `clientId` and
+`clientHandle` are both unique among all registered clients. 
 
 A client MAY be editable by the following request:
 
