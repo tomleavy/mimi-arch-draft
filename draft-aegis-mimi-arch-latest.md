@@ -179,7 +179,7 @@ accounts and/or domains. Conceptually, an account is a collection of clients
 (usually belonging to one user) and a domain is a collection of accounts
 (e.g. belonging to a particular organization).
 
-The only credential supported by the X509 Identity Provider are `x509` 
+The only credential type supported by the X509 Identity Provider is `x509` .
 credentials which consist of a chain of 1 or more X.509 certificates. 
 Certificate chains MUST be validated according to the rules in RFC 5280 using
 the trust roots agreed upon by the (TODO: Some sort of extension dealing with
