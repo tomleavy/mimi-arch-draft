@@ -258,7 +258,7 @@ all clients registered in the application. However, if domains are being used
 then client handles are only unique within scope of the client's domain.
 
 If the Provider is configured to use accounts then a client handle is defined
-to be the concatenation of its account handel followed by its end point handle
+to be the concatenation of its account handle followed by its end point handle
 seperated by a "/". When accounts are not used the client handle is simply its
 end point handle.
 
