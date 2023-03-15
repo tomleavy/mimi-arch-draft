@@ -240,7 +240,7 @@ from the leaf certificate up.
 If (params.user_domains == true) {
     Assert (params.domain_name_offset > params.endpoint_handle_range.end)
 }
-~~~~
+~~~
 
 Finally, if both domains and accounts are used then the domain name offset MUST
 also strictly succeed the account handle offset.
