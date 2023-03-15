@@ -271,7 +271,7 @@ If (params.use_accounts == true) {
 ~~~
 
 End piont handles, account handles (when used) and domain names (when used) are
-derived from subject Common Name fields in a clients credential certificate
+derived from subject Common Name fields in a client's credential certificate
 chain as described bellow. To ensure unambiguous URI's for clients and accounts
 (as described in {{?I-D.draft-mahy-mimi-identity}}) the Common Name fields found
 used to derive the handles MUST NOT contain any of the 5 special characters
