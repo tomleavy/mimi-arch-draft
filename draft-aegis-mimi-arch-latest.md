@@ -53,7 +53,7 @@ messages, pending proposals, commit messages, and ratchet trees.
 In this document we describe a MIMI Gateway API that can be used to provide 
 intra domain and cross domain federation between MLS applications.
 
-# Operational Context 
+## Operational Context 
 
 A basic federation scenario consists of a bi-directional data flow between
 three types of actors: clients, application servers and MIMI gateways. Clients
@@ -86,7 +86,7 @@ gateway services, and gateway services communicate with other gateway services.
 + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 ~~~
 
-# Gateway Overview
+## Gateway Overview
 
 The MIMI Gateway is designed to be a hybrid of AS and DS functionality as
 defined by `MLS Architecture`. It has an internal interface for
@@ -100,7 +100,7 @@ cipher suite and a custom label.
 * MLS proposals, commits, welcome messages and ratchet trees indexed by MLS
 `group_id` and `epoch_id`.
 
-## Identity Providers
+# Identity Providers
 
 An identity provider helps ensure a consistent AS behavior between federating
 MLS applications. Internally an identity provider MUST implement the following
@@ -117,6 +117,27 @@ set of functionality.
   if an Update proposal, or a remove proposal within an external commit should
   be allowed. Unless otherwise specified, a client is a valid successor of
   another client if their client identifiers are equal.
+
+Each identity provider is configured using the `IdentityConfiguration` struct
+which helps synchronize various provider specific options across applications.
+The configuration has a unique type value that identifies the provider and
+two flags `supports_accounts` and `supports_domains` indicating whether the
+provider supports the notions of accounts and domains respectively.
+Conceptually, an account is a collection of clients (usually belonging to one 
+user) and a domain is a collection of accounts (e.g. belonging to a particular 
+organization). Besides this generic configuration a provider can also have
+additional custom opaque parameters.
+
+~~~
+uint16 IdentityProviderType;
+
+struct {
+    IdentityProviderType type;
+    bool supports_accounts;
+    bool supports_domains;
+    opaque parameters<V>;
+} IdentityConfiguration;
+~~~
 
 An example interface of an identity provider is as follows:
 
@@ -145,25 +166,27 @@ interface {
 } IdentityProvider;
 ~~~
 
-Each identity provider has a unique value that identifies its behavior along
-with opaque parameters which help synchronize various options across
-applications. 
+If the provider is configured to support accounts the interface could, for
+example, include the following additional function.
 
 ~~~
-uint16 IdentityProviderType;
-
-struct {
-    IdentityProviderType type;
-    opaque parameters<V>;
-} IdentityConfiguration;
+    fn client_account(Identity identity) -> Vec<u8>
 ~~~
 
-The rest of this section describes two examples of Identity Providers.
+Similarly, when configured to support domains the interface could be extended
+with the following function.
+
+~~~
+    fn client_domain(Identity identity) -> Vec<u8>
+~~~
+
+The rest of this section describes two examples of identity providers.
 
 ## Basic Identity Provider 
 
 The basic identity provider is the minimal implementation of an identity
-provider. It has the following properties:
+provider. It does not support accounts nor domains and has the following
+properties:
 
 * Basic is the only type of credential that is supported.
 * Credentials are always valid.
@@ -172,18 +195,18 @@ provider. It has the following properties:
 
 ## X.509 Identity Provider
 
-The X.509 identify provider allows for hierarchical identities based on
-certificate chains. The provider is configured via the `X509Parameters` struct. 
-Besides clients, depending on how the provider is configured it may also support
-accounts and/or domains. Conceptually, an account is a collection of clients
-(usually belonging to one user) and a domain is a collection of accounts
-(e.g. belonging to a particular organization).
+The X.509 Identify Provider allows for hierarchical identities based on
+certificate chains. The provider is configured via the generic
+`IdentityConfiguration` struct and the X.509 Identity Provider specific
+`X509Parameters` struct contained within. Besides clients, depending on how the
+corresponding flags in `IdentityConfiguration` are set, the X.509 Identity
+Provider may also support accounts and/or domains.
 
 The only credential type supported by the X509 Identity Provider is `x509` .
-An X.509 credential contains a chain of 1 or more X.509 certificates, encoded as specified in {{!I-D.ietf-mls-protocol}}.
-Certificate chains MUST be validated according to the rules in {{!RFC5280}} using
-the trust roots agreed upon by the (TODO: Some sort of extension dealing with
-trust root negotiation).
+An X.509 credential contains a chain of 1 or more X.509 certificates, encoded as
+specified in {{!I-D.ietf-mls-protocol}}. Certificate chains MUST be validated
+according to the rules in {{!RFC5280}} using the trust roots agreed upon by the
+(TODO: Some sort of extension dealing with trust root negotiation).
 
 ~~~
 struct {
@@ -196,25 +219,24 @@ struct {
 } X509DeviceHandleRange
 
 struct {
-    bool use_accounts;
-    bool use_domains:
     X509DeviceHandleRange device_handle_range;
-    select (use_accounts) {
+    select (supports_accounts) {
         case true:
             uint8 account_handle_offset;
         case false:
             struct {}
     }
-    select (use_domains) {
+    select (supports_domains) {
         case true:
             uint8 domain_name_offset;
         case false:
             struct {}
     }
-} X509Parameters;
+} X509Parameters
 ~~~
 
-A given parameter set `X509Parameters params` is valid if the following
+A given parameter set `IdentityConfiguration conf` with custom X.509 Identity
+Provider parameters `X509Parameters params` is valid if the following
 conditions are all met. The device handle range MUST not end before it
 starts.
 
@@ -227,14 +249,14 @@ handel offset MUST strictly succeed the device handle range in the
 certificate chain counting from the leaf certificate up. 
 
 ~~~
-If (params.use_accounts == true) {
+If (conf.supports_accounts == true) {
     Assert (params.account_handle_offset > params.device_handle_range.end)
 }
 ~~~~
 
 Many messaging systems use multi-client (e.g. multi-device) accounts.
-Accounts are also referred to as users {{?I-D.draft-mahy-mimi-identity}}. Account
-handles are calculated like client handles but based on the certificate
+Accounts are also referred to as users {{?I-D.draft-mahy-mimi-identity}}. 
+Account handles are calculated like client handles but based on the certificate
 at the Account Handle offset (instead of Client Handle range).
 
 If the provider is configured to use domains then the domain name offset MUST
@@ -242,7 +264,7 @@ strictly succeeds the device handle range in the certificate chain counting
 from the leaf certificate up.
 
 ~~~
-If (params.user_domains == true) {
+If (conf.supports_domains == true) {
     Assert (params.domain_name_offset > params.device_handle_range.end)
 }
 ~~~
@@ -251,7 +273,7 @@ Finally, if both domains and accounts are used then the domain name offset MUST
 also strictly succeed the account handle offset.
 
 ~~~
-If (params.use_domains == true) && (params.use_accounts == true) {
+If (conf.supports_domains == true) && (conf.supports_accounts == true) {
     Assert (params.domain_name_offset > params.account_handle_offset)
 ~~~~
 
@@ -269,7 +291,7 @@ seperated by a "/". When accounts are not used the client handle is simply its
 device handle.
 
 ~~~
-If (params.use_accounts == true) {
+If (conf.supports_accounts == true) {
     client_handle := account_handle + "/" + device_handle;
 } Else {
     client_handle := device_handle;
