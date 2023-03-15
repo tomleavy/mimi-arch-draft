@@ -216,7 +216,7 @@ struct {
 struct {
     uint8 start;
     uint8 end<0...255>;
-} X509DeviceHandleRange
+} X509DeviceHandleRange;
 
 struct {
     X509DeviceHandleRange device_handle_range;
