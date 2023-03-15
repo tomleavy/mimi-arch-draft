@@ -193,12 +193,12 @@ struct {
 struct {
     uint8 start;
     uint8 end<0...255>;
-} X509EndpointHandleRange
+} X509DeviceHandleRange
 
 struct {
     bool use_accounts;
     bool use_domains:
-    X509EndpointHandleRange endpoint_handle_range;
+    X509DeviceHandleRange device_handle_range;
     select (use_accounts) {
         case true:
             uint8 account_handle_offset;
@@ -215,30 +215,30 @@ struct {
 ~~~
 
 A given parameter set `X509Parameters params` is valid if the following
-conditions are all met. The end point handle range MUST not end before it
+conditions are all met. The device handle range MUST not end before it
 starts.
 
 ~~~
-Assert (params.endpoint_handle_range.end >= params.endpoint_handle_range.start)
+Assert (params.device_handle_range.end >= params.device_handle_range.start)
 ~~~
 
 If the X509 Identity Provider is configured to use accounts then the account
-handel offset MUST strictly succeed the end point handle range in the
+handel offset MUST strictly succeed the device handle range in the
 certificate chain counting from the leaf certificate up. 
 
 ~~~
 If (params.use_accounts == true) {
-    Assert (params.account_handle_offset > params.endpoint_handle_range.end)
+    Assert (params.account_handle_offset > params.device_handle_range.end)
 }
 ~~~~
 
 If the provider is configured to use domains then the domain name offset MUST
-strictly succeeds the end point handle range in the certificate chain counting
+strictly succeeds the device handle range in the certificate chain counting
 from the leaf certificate up.
 
 ~~~
 If (params.user_domains == true) {
-    Assert (params.domain_name_offset > params.endpoint_handle_range.end)
+    Assert (params.domain_name_offset > params.device_handle_range.end)
 }
 ~~~
 
@@ -259,15 +259,15 @@ used then client handles MUST only be unique within scope of the client's
 domain.
 
 If the Provider is configured to use accounts then a client handle is defined
-to be the concatenation of its account handle followed by its end point handle
+to be the concatenation of its account handle followed by its device handle
 seperated by a "/". When accounts are not used the client handle is simply its
-end point handle.
+device handle.
 
 ~~~
 If (params.use_accounts == true) {
-    client_handle := account_handle + "/" + end_point_handle;
+    client_handle := account_handle + "/" + device_handle;
 } Else {
-    client_handle := end_point_handle;
+    client_handle := device_handle;
 }
 ~~~
 
@@ -278,11 +278,11 @@ chain as described bellow. To ensure unambiguous URI's for clients and accounts
 used to derive the handles MUST NOT contain any of the 5 special characters
 "@", "/", "#", "$" and ":". 
 
-### X.509 End Point Handles
-A client's end point handle is derived by concatenating the X.509 subject Common
+### X.509 Device Handles
+A client's device handle is derived by concatenating the X.509 subject Common
 Name fields of a range of certificates in client's certificate chain credential.
 The range to use is defined by the `start` and `end` offsets in the 
-`endpoint_handle_range` field of the `X509Parameters` struct. Offsets begin at
+`device_handle_range` field of the `X509Parameters` struct. Offsets begin at
 the leaf certificate wich has offset 0 and count upwards towards the root
 certificate in the chain. Each Common Name field in the range is seperated from
 the next in the client handle using a ":" character as delimiter.
@@ -290,14 +290,14 @@ the next in the client handle using a ":" character as delimiter.
 ### X.509 Account Handles
 
 When the X509 Identity Provider is configured to use accounts a client's account
-handle is calculated just like its end point handle but using only the
+handle is calculated just like its device handle but using only the
 certificate with the offset given by the `account_handle_offset` field in the
 `X509Parameters` struct.
 
 ### X.509 Domains Names
 
 When the X509 Identity Provider is configured to use domains a client's domain
-name is calculated just like its end point handle but using only the certificate
+name is calculated just like its device handle but using only the certificate
 with the offset given in the `domain_name_offset` field in the `X509Parameters`
 struct.
 
