@@ -179,9 +179,9 @@ accounts and/or domains. Conceptually, an account is a collection of clients
 (usually belonging to one user) and a domain is a collection of accounts
 (e.g. belonging to a particular organization).
 
-The only credential supported by the X509 Identity Provider are `x509` 
-credentials which consist of a chain of 1 or more X.509 certificates. 
-Certificate chains MUST be validated according to the rules in RFC 5280 using
+The only credential type supported by the X509 Identity Provider is `x509` .
+An X.509 credential contains a chain of 1 or more X.509 certificates, encoded as specified in {{!I-D.ietf-mls-protocol}}.
+Certificate chains MUST be validated according to the rules in {{!RFC5280}} using
 the trust roots agreed upon by the (TODO: Some sort of extension dealing with
 trust root negotiation).
 
@@ -223,7 +223,7 @@ Assert (params.endpoint_handle_range.end >= params.endpoint_handle_range.start)
 ~~~
 
 If the X509 Identity Provider is configured to use accounts then the account
-handel offset MUST strictly succeeds the end point handle range in the
+handel offset MUST strictly succeed the end point handle range in the
 certificate chain counting from the leaf certificate up. 
 
 ~~~
@@ -240,7 +240,7 @@ from the leaf certificate up.
 If (params.user_domains == true) {
     Assert (params.domain_name_offset > params.endpoint_handle_range.end)
 }
-~~~~
+~~~
 
 Finally, if both domains and accounts are used then the domain name offset MUST
 also strictly succeed the account handle offset.
@@ -258,7 +258,7 @@ all clients registered in the application. However, if domains are being used
 then client handles are only unique within scope of the client's domain.
 
 If the Provider is configured to use accounts then a client handle is defined
-to be the concatenation of its account handel followed by its end point handle
+to be the concatenation of its account handle followed by its end point handle
 seperated by a "/". When accounts are not used the client handle is simply its
 end point handle.
 
@@ -271,10 +271,10 @@ If (params.use_accounts == true) {
 ~~~
 
 End piont handles, account handles (when used) and domain names (when used) are
-derived from subject Common Name fields in a clients credential certificate
+derived from subject Common Name fields in a client's credential certificate
 chain as described bellow. To ensure unambiguous URI's for clients and accounts
 (as described in {{?I-D.draft-mahy-mimi-identity}}) the Common Name fields found
-used to derive the handles MUST not contain any of the 5 special characters
+used to derive the handles MUST NOT contain any of the 5 special characters
 "@", "/", "#", "$" and ":". 
 
 ### X.509 End Point Handles
