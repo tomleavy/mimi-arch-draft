@@ -13,7 +13,7 @@ stand_alone: yes
 pi: [toc, sortrefs, symrefs]
 
 author:
- -  fullname: Joel ALwen
+ -  fullname: Joel Alwen
     organization: Amazon - Wickr
     email: alwenjo@amazon.com
 
@@ -232,6 +232,11 @@ If (params.use_accounts == true) {
 }
 ~~~~
 
+Many messaging systems use multi-client (e.g. multi-device) accounts.
+Accounts are also referred to as users {{?I-D.draft-mahy-mimi-identity}}. Account
+handles are calculated like client handles but based on the certificate
+at the Account Handle offset (instead of Client Handle range).
+
 If the provider is configured to use domains then the domain name offset MUST
 strictly succeeds the device handle range in the certificate chain counting
 from the leaf certificate up.
@@ -312,29 +317,34 @@ propose their removal. Other clients / Server MUST verify this has been done
 based on the timestamp of the message assigned by the server and reject
 accordingly.
 
-## Applications
+# Applications
 
 A gateway can manage information for multiple applications that may or may not
-federate with each other. An application is uniquely identified by a unique
-ApplicationID and is specified as:
+federate with each other. An application is identified by an 
+ApplicationID and its behavior is defined by an ApplicationConfiguration.
+ApplicationID is defined as a UUIDv4 string and MUST be unique across all
+gateways that are federated with one another. // TODO: Link to UUIDv4 definition
 
 ~~~
 struct {
     UUIDv4 id;
-} ApplicationId;
-~~~
-
-~~~
-struct {
-    ApplicationId: id;
     IdentityConfiguration identity_configuration;
-    // TODO: Other stuff???
+    // TODO: Is additional configuration needed?
 } ApplicationConfiguration;
 ~~~
 
-An application MUST be configured with an IdentityProvider that matches all of
-the other applications that it needs to federate with to ensure
-interoperability.
+In order for interoperable federation to exist between domains, the
+ApplicationConfiguration for a particular ApplicationId MUST match between
+each domain that is participating. Application configurations hosted on a
+particular gateway MAY be public by providing access to the following API route:
+
+~~~
+HTTP GET /apps 
+
+Output:
+
+[ApplicationConfiguration]
+~~~
 
 # Managing Identities
 
@@ -368,7 +378,7 @@ HTTP POST /apps/{appId}/clients
 Input:
 
 {
-    clientHandle: Base64(IdentityProvider.client_handle),
+    clientHandle: IdentityProvider.client_handle,
     tags: [String]
 }
 
@@ -392,7 +402,7 @@ HTTP PATCH /apps/{appId}/clients/{clientId}
 Input:
 
 {
-   clientHandle: Base64(IdentityProvider.client_handle),
+   clientHandle: IdentityProvider.client_handle,
    tagsToAdd: [String],
    tagsToRemove: [String]
 }
@@ -421,7 +431,7 @@ Output:
     identities: [
         {
             clientId: UUIDv4,
-            clientHandle: Base64(IdentityProvider.client_handle),
+            clientHandle: IdentityProvider.client_handle,
             tags: [String]
         },
     ...
@@ -598,7 +608,7 @@ there are no more keys.
 Key package retrieval is idempotent by design. Repeated requests with the same
 queue properties and `receiver_client_id` combination MUST produce the same key
 package until the queue is advanced. A queue is advanced by deleting the key
-package assoiciated with a particular `receiver_client_id`, which will allow
+package associated with a particular `receiver_client_id`, which will allow
 that receiver to get a new key package the next time one is requested.
 Advancing the key queue is dependent on the key package being used by a
 meaningful group operation as described in {{group-evolution}}.
@@ -763,7 +773,7 @@ A gateway processes the above request using the following steps:
 * Verify that `commitPacket` is a valid commit in the context of the current
   epoch of the group identified by `group_id`, according to
   {{!I-D.ietf-mls-protocol}}. That is, the gateway performs all checks a group
-  member does, except those that require group secrets: veriying the membership
+  member does, except those that require group secrets: verifying the membership
   and confirmation tags.
 * Update the state of the group identified by `group_id` as follows:
   * Add a new epoch to `epochs` with the commit packet set to `commitPacket`.
