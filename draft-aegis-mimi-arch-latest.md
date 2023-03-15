@@ -196,21 +196,21 @@ struct {
 } X509EndpointHandleRange
 
 struct {
-	bool use_accounts;
-	bool use_domains:
+    bool use_accounts;
+    bool use_domains:
     X509EndpointHandleRange endpoint_handle_range;
-	select (use_accounts) {
-	    case true:
-		    uint8 account_handle_offset;
-		case false:
-		    struct {}
-	}
-	select (use_domains) {
-	    case true:
-		    uint8 domain_name_offset;
-		case false:
-		    struct {}
-	}
+    select (use_accounts) {
+        case true:
+            uint8 account_handle_offset;
+        case false:
+            struct {}
+    }
+    select (use_domains) {
+        case true:
+            uint8 domain_name_offset;
+        case false:
+            struct {}
+    }
 } X509Parameters;
 ~~~
 
