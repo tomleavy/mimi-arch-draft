@@ -170,7 +170,7 @@ If the provider is configured to support accounts the interface could, for
 example, include the following additional function.
 
 ~~~
-    fn client_account(Identity identity) -> Vec<u8>
+    fn client_account(Identity identity) -> String
 ~~~
 
 Similarly, when configured to support domains the interface could be extended
