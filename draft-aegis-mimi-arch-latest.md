@@ -177,7 +177,7 @@ Similarly, when configured to support domains the interface could be extended
 with the following function.
 
 ~~~
-    fn client_domain(Identity identity) -> Vec<u8>
+    fn client_domain(Identity identity) -> String
 ~~~
 
 The rest of this section describes two examples of identity providers.
@@ -220,13 +220,13 @@ struct {
 
 struct {
     X509DeviceHandleRange device_handle_range;
-    select (supports_accounts) {
+    select (IdentityConfiguration.supports_accounts) {
         case true:
             uint8 account_handle_offset;
         case false:
             struct {}
     }
-    select (supports_domains) {
+    select (IdentityConfiguration.supports_domains) {
         case true:
             uint8 domain_name_offset;
         case false:
@@ -249,7 +249,7 @@ handel offset MUST strictly succeed the device handle range in the
 certificate chain counting from the leaf certificate up. 
 
 ~~~
-If (conf.supports_accounts == true) {
+If (IdentityConfiguration.supports_accounts == true) {
     Assert (params.account_handle_offset > params.device_handle_range.end)
 }
 ~~~~
@@ -264,7 +264,7 @@ strictly succeeds the device handle range in the certificate chain counting
 from the leaf certificate up.
 
 ~~~
-If (conf.supports_domains == true) {
+If (IdentityConfiguration.supports_domains == true) {
     Assert (params.domain_name_offset > params.device_handle_range.end)
 }
 ~~~
@@ -273,7 +273,7 @@ Finally, if both domains and accounts are used then the domain name offset MUST
 also strictly succeed the account handle offset.
 
 ~~~
-If (conf.supports_domains == true) && (conf.supports_accounts == true) {
+If (IdentityConfiguration.supports_domains == true) && (IdentityConfiguration.supports_accounts == true) {
     Assert (params.domain_name_offset > params.account_handle_offset)
 ~~~~
 
@@ -291,7 +291,7 @@ seperated by a "/". When accounts are not used the client handle is simply its
 device handle.
 
 ~~~
-If (conf.supports_accounts == true) {
+If (IdentityConfiguration.supports_accounts == true) {
     client_handle := account_handle + "/" + device_handle;
 } Else {
     client_handle := device_handle;
