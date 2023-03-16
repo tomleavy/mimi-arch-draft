@@ -92,9 +92,9 @@ The MIMI Gateway is designed to be a hybrid of AS and DS functionality as
 defined by `MLS Architecture`. It has an internal interface for
 applications within its domain(s) to federate with each other, as well as an
 external interface that allows for cross-domain federation. If an application
-uses an Identity Provider configured to use domains then the gateway MUST be
-aware (e.g. via configuration paramets) of its domain(s) as it will, for
-example, need these to perform basic sanity checks when clients register new
+supports federation then it MUST [support domains](#identity-providers) and it 
+MUST be aware of which domain(s) its clients belong to. This will be needed, 
+for example, to perform basic sanity checks when clients register new
 key packages. 
 
 A gateway acts as a permissioned database of the following information:
