@@ -94,7 +94,7 @@ applications within its domain(s) to federate with each other, as well as an
 external interface that allows for cross-domain federation. If an application
 uses an Identity Provider configured to use domains then the gateway MUST be
 aware (e.g. via configuration paramets) of its domain(s) as it will, for
-exampke, need these to perform basic sanity checks when clients register new
+example, need these to perform basic sanity checks when clients register new
 key packages. 
 
 A gateway acts as a permissioned database of the following information:
@@ -148,7 +148,7 @@ An example interface of an identity provider is as follows:
 ~~~
 Identity
 {
-    "public_key": HPKEPublicKey,
+    "public_key": SignaturePublicKey,
     "credential": Credential
 }
 
