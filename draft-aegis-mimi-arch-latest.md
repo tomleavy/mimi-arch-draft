@@ -221,6 +221,7 @@ X509ApplicationContext
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 struct {
     uint8 start;
     uint8 end<0...255>;
@@ -233,9 +234,11 @@ X509DeviceHandleRange
 }
 >>>>>>> 61f606c (Moved to JSON)
 
+=======
+>>>>>>> df988b9 (inline X509DeviceHandleRange into X509Parameters)
 X509Parameters
 {      // required
-    "device_handle_range": X509DeviceHandleRange,
+    "device_handle_range": ["start": uint8, "end"; uint8],
        // required when IdentityConfiguration.support_accounts == true
     "account_handle_offset": uint8,
        // required when IdentityConfiguration.support_domains == true    
