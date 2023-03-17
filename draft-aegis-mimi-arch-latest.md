@@ -60,6 +60,9 @@ three types of actors: clients, application servers and MIMI gateways. Clients
 communicate with application servers, application servers communicate with
 gateway services, and gateway services communicate with other gateway services.
 
+Typically, application servers are only responsible for transparently delivering
+messages 
+
 ~~~
 + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 '                       Domain A                                '
@@ -85,6 +88,23 @@ gateway services, and gateway services communicate with other gateway services.
 '                                                               '
 + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 ~~~
+
+An example message flow for Alice creating a group with Carol is as follows:
+
+1. Carol registers a key package in MIMI Gateway B. The key package is delivered
+   via Application Server 3.
+2. Alice asks MIMI Gateway A, via Application Server 1, for a key package for
+   Carol on Domain B.
+3. MIMI Gateway A finds MIMI Gateway B via Domain B and requests a key package
+   for Carol.
+4. MIMI Gateway B sends back the key package Carol registered in Step 1. MIMI
+   Gateway A sends the key package to Alice, via Application Server 1.
+5. Alice creates a new MLS session and  sends a welcome message for Carol to
+   MIMI Gateway A.
+6. MIMI Gateway A sends the welcome message to MIMI Gateway B .
+7. When Carol comes online, MIMI Gateway B sends her the welcome message via
+   Application Server 3. Carol joins the session.
+
 
 ## Gateway Overview
 
