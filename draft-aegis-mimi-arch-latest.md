@@ -90,9 +90,14 @@ gateway services, and gateway services communicate with other gateway services.
 
 The MIMI Gateway is designed to be a hybrid of AS and DS functionality as
 defined by `MLS Architecture`. It has an internal interface for
-applications within its domain to federate with each other, as well as an
-external interface that allows for cross-domain federation. A gateway acts as a
-permissioned database of the following information:
+applications within its domain(s) to federate with each other, as well as an
+external interface that allows for cross-domain federation. If an application
+supports federation then it MUST [support domains](#identity-providers) and it 
+MUST be aware of which domain(s) its clients belong to. This will be needed, 
+for example, to perform basic sanity checks when clients register new
+key packages. 
+
+A gateway acts as a permissioned database of the following information:
 
 * Unique identifiers of clients that can be queried by application-defined tags.
 * Queryable queues of MLS Key Packages indexed by identifier, protocol version,
@@ -118,9 +123,9 @@ set of functionality.
   be allowed. Unless otherwise specified, a client is a valid successor of
   another client if their client identifiers are equal.
 
-Each identity provider is configured using the `IdentityConfiguration` struct
+Each identity provider is configured using an `IdentityConfiguration` object
 which helps synchronize various provider specific options across applications.
-The configuration has a unique type value that identifies the provider and
+The configuration has a unique type value that identifies the provider type and
 two flags `supports_accounts` and `supports_domains` indicating whether the
 provider supports the notions of accounts and domains respectively.
 Conceptually, an account is a collection of clients (usually belonging to one 
@@ -129,27 +134,28 @@ organization). Besides this generic configuration a provider can also have
 additional custom opaque parameters.
 
 ~~~
-uint16 IdentityProviderType;
-
-struct {
-    IdentityProviderType type;
-    bool supports_accounts;
-    bool supports_domains;
-    opaque parameters<V>;
-} IdentityConfiguration;
+IdentityConfiguration
+{
+    "identity_provider_type": number,   //uint8
+    "supports_accounts": boolean,
+    "supports_domains": boolean,
+    "parameters": object 
+}
 ~~~
 
 An example interface of an identity provider is as follows:
 
 ~~~
-struct {
-    HPKEPublicKey public_key;
-    Credential credential;
-} Identity;
+Identity
+{
+    "public_key": SignaturePublicKey,
+    "credential": Credential
+}
 
-struct {
-    opaque context<V>
-} ApplicationContext;
+ApplicationContext
+{
+    "context": object
+}
 
 interface {
     fn supported_credentials() -> [CredentialType];
@@ -197,8 +203,8 @@ properties:
 
 The X.509 Identify Provider allows for hierarchical identities based on
 certificate chains. The provider is configured via the generic
-`IdentityConfiguration` struct and the X.509 Identity Provider specific
-`X509Parameters` struct contained within. Besides clients, depending on how the
+`IdentityConfiguration` object and the X.509 Identity Provider specific
+`X509Parameters` object contained within. Besides clients, depending on how the
 corresponding flags in `IdentityConfiguration` are set, the X.509 Identity
 Provider may also support accounts and/or domains.
 
@@ -209,39 +215,48 @@ according to the rules in {{!RFC5280}} using the trust roots agreed upon by the
 (TODO: Some sort of extension dealing with trust root negotiation).
 
 ~~~
-struct {
-    uint64 msg_timestamp;
-} X509ApplicationContext;
+X509ApplicationContext
+{
+    "msg_timestamp": number //uint64
+}
 
+<<<<<<< HEAD
+<<<<<<< HEAD
 struct {
     uint8 start;
     uint8 end<0...255>;
 } X509DeviceHandleRange;
+=======
+X509DeviceHandleRange
+{
+    "start": uint8,
+    "end": uint8
+}
+>>>>>>> 61f606c (Moved to JSON)
 
-struct {
-    X509DeviceHandleRange device_handle_range;
-    select (IdentityConfiguration.supports_accounts) {
-        case true:
-            uint8 account_handle_offset;
-        case false:
-            struct {}
-    }
-    select (IdentityConfiguration.supports_domains) {
-        case true:
-            uint8 domain_name_offset;
-        case false:
-            struct {}
-    }
-} X509Parameters
+=======
+>>>>>>> df988b9 (inline X509DeviceHandleRange into X509Parameters)
+X509Parameters
+{      // required
+    "device_handle_range": {
+	        "start": number,  //uint8 
+		    "end"; number     //uint8
+		},
+       // required when IdentityConfiguration.support_accounts == true
+    "account_handle_offset": number, //uint8
+       // required when IdentityConfiguration.support_domains == true    
+    "domain_name_offset": number, //uint8
+}
 ~~~
 
-A given parameter set `IdentityConfiguration conf` with custom X.509 Identity
-Provider parameters `X509Parameters params` is valid if the following
-conditions are all met. The device handle range MUST not end before it
+A given `IdentityConfiguration` parameter set with custom X.509 Identity
+Provider settings `"parameters": X509Parameters` are valid if the
+following conditions are all met. The device handle range MUST not end before it
 starts.
 
 ~~~
-Assert (params.device_handle_range.end >= params.device_handle_range.start)
+Assert (parameters.device_handle_range.end >= 
+        parameters.device_handle_range.start)
 ~~~
 
 If the X509 Identity Provider is configured to use accounts then the account
@@ -250,7 +265,8 @@ certificate chain counting from the leaf certificate up.
 
 ~~~
 If (IdentityConfiguration.supports_accounts == true) {
-    Assert (params.account_handle_offset > params.device_handle_range.end)
+    Assert (parameters.account_handle_offset >
+            parameters.device_handle_range.end)
 }
 ~~~~
 
@@ -265,7 +281,7 @@ from the leaf certificate up.
 
 ~~~
 If (IdentityConfiguration.supports_domains == true) {
-    Assert (params.domain_name_offset > params.device_handle_range.end)
+    Assert (parameters.domain_name_offset > parameters.device_handle_range.end)
 }
 ~~~
 
@@ -273,8 +289,10 @@ Finally, if both domains and accounts are used then the domain name offset MUST
 also strictly succeed the account handle offset.
 
 ~~~
-If (IdentityConfiguration.supports_domains == true) && (IdentityConfiguration.supports_accounts == true) {
-    Assert (params.domain_name_offset > params.account_handle_offset)
+If (IdentityConfiguration.supports_domains == true) &&
+   (IdentityConfiguration.supports_accounts == true) {
+    Assert (parameters.domain_name_offset > parameters.account_handle_offset)
+}
 ~~~~
 
 ### X.509 Identifiers
@@ -309,7 +327,7 @@ used to derive the handles MUST NOT contain any of the 5 special characters
 A client's device handle is derived by concatenating the X.509 subject Common
 Name fields of a range of certificates in client's certificate chain credential.
 The range to use is defined by the `start` and `end` offsets in the 
-`device_handle_range` field of the `X509Parameters` struct. Offsets begin at
+`device_handle_range` field of the `X509Parameters` object. Offsets begin at
 the leaf certificate wich has offset 0 and count upwards towards the root
 certificate in the chain. Each Common Name field in the range is seperated from
 the next in the client handle using a ":" character as delimiter.
@@ -319,14 +337,14 @@ the next in the client handle using a ":" character as delimiter.
 When the X509 Identity Provider is configured to use accounts a client's account
 handle is calculated just like its device handle but using only the
 certificate with the offset given by the `account_handle_offset` field in the
-`X509Parameters` struct.
+`X509Parameters` object.
 
 ### X.509 Domains Names
 
 When the X509 Identity Provider is configured to use domains a client's domain
 name is calculated just like its device handle but using only the certificate
 with the offset given in the `domain_name_offset` field in the `X509Parameters`
-struct.
+object.
 
 ### Handing Timestamps 
 
@@ -348,11 +366,13 @@ ApplicationID is defined as a UUIDv4 string and MUST be unique across all
 gateways that are federated with one another. // TODO: Link to UUIDv4 definition
 
 ~~~
-struct {
-    UUIDv4 id;
-    IdentityConfiguration identity_configuration;
+ApplicationConfiguration
+{
+    "identity_configuration": IdentityConfiguration,
+    "id": UUIDv4
+    // TODO: Could apps use multiple IdentityConfigurations?
     // TODO: Is additional configuration needed?
-} ApplicationConfiguration;
+}
 ~~~
 
 In order for interoperable federation to exist between domains, the
