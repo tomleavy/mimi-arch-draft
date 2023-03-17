@@ -240,31 +240,25 @@ X509ApplicationContext
     "msg_timestamp": number //uint64
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-struct {
-    uint8 start;
-    uint8 end<0...255>;
-} X509DeviceHandleRange;
-=======
 X509DeviceHandleRange
 {
     "start": uint8,
     "end": uint8
 }
->>>>>>> 61f606c (Moved to JSON)
 
-=======
->>>>>>> df988b9 (inline X509DeviceHandleRange into X509Parameters)
 X509Parameters
-{      // required
-    "device_handle_range": {
-	        "start": number,  //uint8 
-		    "end"; number     //uint8
-		},
-       // required when IdentityConfiguration.support_accounts == true
+{
+    // required
+    "device_handle_range":
+    {
+        "start": number,  //uint8 
+        "end"; number     //uint8
+    },
+
+     // required when IdentityConfiguration.support_accounts == true
     "account_handle_offset": number, //uint8
-       // required when IdentityConfiguration.support_domains == true    
+
+     // required when IdentityConfiguration.support_domains == true    
     "domain_name_offset": number, //uint8
 }
 ~~~
