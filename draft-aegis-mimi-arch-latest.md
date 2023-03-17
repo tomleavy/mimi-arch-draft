@@ -136,10 +136,10 @@ additional custom opaque parameters.
 ~~~
 IdentityConfiguration
 {
-    "identity_provider_type": uint8,
+    "identity_provider_type": number,   //uint8
     "supports_accounts": boolean,
     "supports_domains": boolean,
-    "parameters": object<V> 
+    "parameters": object 
 }
 ~~~
 
@@ -154,7 +154,7 @@ Identity
 
 ApplicationContext
 {
-    "context": object<V>
+    "context": object
 }
 
 interface {
@@ -217,7 +217,7 @@ according to the rules in {{!RFC5280}} using the trust roots agreed upon by the
 ~~~
 X509ApplicationContext
 {
-    "msg_timestamp": uint64
+    "msg_timestamp": number //uint64
 }
 
 <<<<<<< HEAD
@@ -238,16 +238,19 @@ X509DeviceHandleRange
 >>>>>>> df988b9 (inline X509DeviceHandleRange into X509Parameters)
 X509Parameters
 {      // required
-    "device_handle_range": ["start": uint8, "end"; uint8],
+    "device_handle_range": {
+	        "start": number,  //uint8 
+		    "end"; number     //uint8
+		},
        // required when IdentityConfiguration.support_accounts == true
-    "account_handle_offset": uint8,
+    "account_handle_offset": number, //uint8
        // required when IdentityConfiguration.support_domains == true    
-    "domain_name_offset": uint8
+    "domain_name_offset": number, //uint8
 }
 ~~~
 
 A given `IdentityConfiguration` parameter set with custom X.509 Identity
-Provider settings `"parameters": object<X509Parameters>` are valid if the
+Provider settings `"parameters": X509Parameters` are valid if the
 following conditions are all met. The device handle range MUST not end before it
 starts.
 
