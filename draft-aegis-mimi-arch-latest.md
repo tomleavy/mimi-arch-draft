@@ -216,7 +216,7 @@ struct {
 struct {
     uint8 start;
     uint8 end<0...255>;
-} X509DeviceHandleRange
+} X509DeviceHandleRange;
 
 struct {
     X509DeviceHandleRange device_handle_range;
@@ -376,6 +376,7 @@ for as long as the client uses the system. In contrast, a client's
 _handle_ may change (for instance, if they change a phone's hostname).
 Further, each client is (optionally) assigned a set of tags. Each tag
 represents attributes associated with the client, for example:
+
 1. A tag `account_id:alice@org` indicates the client belongs to the (domain
    scoped) account `alice@org`.
 2. Tags `moderator` or `clearance:top_secret` indicates the clients have certain
@@ -435,8 +436,8 @@ conflict with another existing client.
 
 ## Client Discovery
 
-An application can list identifiers of all clients with a given
-tag using the following request:
+An application can list identifiers of all clients with a given tag using the
+following request:
 
 ~~~
 HTTP GET /apps/{appId}/clients 
@@ -444,6 +445,7 @@ HTTP GET /apps/{appId}/clients
 Input:
 
 {
+    optional domain: String,
     tag: String
 }
 
@@ -461,6 +463,14 @@ Output:
 }
 
 ~~~
+
+For applications that use federation, the `domain` value MUST be provided. A
+gateway processes the request as follows. If `domain` is provided and it is not
+assigned to the processing gateway, then the gateway transparently passes the
+input to a gateway to which `domain` is assigned, waits for the output and
+passes it to the calling entity. Otherwise, it returns the registered identity
+data for all clients that have `tag` associated with them: their `clientId`,
+`clientHandle` and all tags.
 
 ## Identity Retrieval
 
@@ -513,7 +523,6 @@ Output:
 {
     keyQueueId: UUIDv4
 }
-
 ~~~
 
 If the above request is successful, a new key queue with unique identifier
@@ -545,12 +554,8 @@ Output:
 }
 ~~~
 
-When processing the above request, a gateway SHOULD verify that each entry in
-`keyPackages` contains an MLS key package that is valid according to
-{{!I-D.ietf-mls-protocol}}. If the above check fails, the request has no effect.
-
-The request (if successful) results in the key queue `keyQueueId` (as in the URI)
-being updated as follows:
+Upon the above request, the key queue `keyQueueId` (as in the URI) is updated
+as follows:
 
 1. If `isReset` is true, remove all key packages from the queue.
 2. In any case, insert, all key packages from `keyPackages` to the queue.
@@ -589,10 +594,11 @@ HTTP GET /apps/{appId}/clients/{clientId}/keyPackage
 Input:
 
 {
+    optional domain: String,
     protocolVersion: uint16,
     cipherSuite: uint16,
     optional appLabel: String
-    receiver_client_id: String
+    receiver_client_id: String,
 }
 
 Output:
@@ -603,11 +609,12 @@ Output:
 }
 ~~~
 
-The above request has the following effect:
-
-// TODO: Should we really have isFinalKey or is that potentially a security
-problem and we should say that the pool should just return an error in the event
-there are no more keys.
+For applications that use federation, the `domain` value MUST be provided. A
+gateway processes the request as follows. If `domain` is provided and it is
+different than the processing gateway's domain, then the gateway transparently
+passes the input to a gateway from `domain`, waits for the output and passes it
+to the calling entity. Otherwise, it processes the request using the following
+steps:
 
 * A key queue with attributes matching the provided `appId`,
   `clientId`, `protocolVersion`, `cipherSuite` and `appLabel` is chosen. If
@@ -890,6 +897,32 @@ Output:
 
 // TODO: should the gateway implement some sort of group searching by handles,
 // or is it left to applications?
+
+
+# Key Package Validation
+
+A gateway receives key packages from applications and other gateways in
+following situations:
+
+* During Key Queue Update and Key Package Retrieval
+* When processing MLS packets containing key packages (add proposals, commits,
+  etc.)
+
+Whenever a gateway receives a key package, it MUST verify that the key package
+is valid according to {{!I-D.ietf-mls-protocol}} (for processing MLS packets,
+this is likely done automatically when the gateway validates the packet using
+MLS). Key packages in key queues are encoded as MLSMessage.
+
+For applications using domains, a gateway MUST also validate the domain of each
+received key package as follows:
+
+* The gateway uses the application's IdentityProvider to retrieve the `domain`
+  from the MLS Credential in the key package. For example, this can be done
+  using the provider's `identity` and `client_domain` functions.
+* If the gateway received the key package from an application (e.g. in an add
+  proposal), a gateway verifies that `domain` is assigned to itself. Else, if
+  the gateway received the key package from another gateway, then it verifies
+  that `domain` is assigned to that other gateway.
 
 # Example Usage
 
