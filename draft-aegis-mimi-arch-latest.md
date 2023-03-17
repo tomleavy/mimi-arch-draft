@@ -247,10 +247,15 @@ X509DeviceHandleRange
 }
 
 X509Parameters
+<<<<<<< HEAD
 {
     // required
     "device_handle_range":
     {
+=======
+{      // required
+    "device_handle_range": {
+>>>>>>> 9636071 (Update draft-aegis-mimi-arch-latest.md)
         "start": number,  //uint8 
         "end"; number     //uint8
     },
